@@ -362,7 +362,7 @@ export function AssistantPage() {
                 <CheckCircle2 className="w-3.5 h-3.5 text-[#059669]" />
                 <span>
                   Groq • {groqHealth.groqModel} •{' '}
-                  {groqHealth.groqConfigured ? 'Live API' : 'Grounded'}
+                  {groqHealth.groqConfigured ? 'Live API' : 'Grounded RAG'}
                 </span>
               </div>
             </div>
@@ -403,7 +403,8 @@ export function AssistantPage() {
                       {m.role === 'assistant' && !m.refusalTriggered && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-[#059669]/30 text-[#047857] font-semibold">
                           <Sparkles className="w-2.5 h-2.5" />
-                          Groq • {m.model ?? 'openai/gpt-oss-120b'} • Grounded
+                          Groq • {m.model ?? 'openai/gpt-oss-120b'} •{' '}
+                          {m.provider === 'groq' ? 'Live API' : 'Grounded RAG'}
                         </span>
                       )}
                     </div>

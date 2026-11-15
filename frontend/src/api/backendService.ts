@@ -1,7 +1,7 @@
 /**
  * Modular Backend Service Layer for Khana-Khazana Dual-Portal Architecture.
  *
- * Connected to Node.js + Express + NeonDB PostgreSQL (`/api/*`).
+ * Connected to Express + NeonDB PostgreSQL (`/api/*`) on local Node.js and Vercel Serverless.
  */
 
 import type {
@@ -43,11 +43,29 @@ export interface HydratedFloorPayload {
   xaiLogs: XaiAuditLog[];
 }
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+export function resolveApiBase(): string {
+  const raw = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '');
+  if (!raw) return '';
+  if (typeof window !== 'undefined') {
+    const isBrowserLocal =
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1';
+    const isConfiguredLocal =
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(raw);
+    if (!isBrowserLocal && isConfiguredLocal) {
+      return '';
+    }
+  }
+  return raw;
+}
+
+export function resolveApiUrl(apiPath: string): string {
+  return `${resolveApiBase()}${apiPath}`;
+}
 
 export async function fetchFloorStateFromApi(): Promise<HydratedFloorPayload | null> {
   try {
-    const resp = await fetch(`${API_BASE}/api/floor/state`);
+    const resp = await fetch(resolveApiUrl('/api/floor/state'));
     if (!resp.ok) return null;
     const data = (await resp.json()) as HydratedFloorPayload & { ok?: boolean };
     if (!data.ok) return null;
@@ -64,7 +82,7 @@ export async function validateAndCreateBooking(
 ): Promise<BookingValidationResponse> {
   const t0 = performance.now();
   try {
-    const resp = await fetch('/api/bookings/validate', {
+    const resp = await fetch(resolveApiUrl('/api/bookings/validate'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -77,6 +95,7 @@ export async function validateAndCreateBooking(
       const data = (await resp.json()) as BookingValidationResponse;
       return {
         ...data,
+        persistedToDb: Boolean(data.persistedToDb),
         responseTimeMs: Math.max(
           25,
           Math.round(data.responseTimeMs || performance.now() - t0),
@@ -87,7 +106,10 @@ export async function validateAndCreateBooking(
     // Graceful local validation fallback if offline
   }
 
-  return validateBookingWorkflow(payload, tables, reservations);
+  return {
+    ...validateBookingWorkflow(payload, tables, reservations),
+    persistedToDb: false,
+  };
 }
 
 export async function checkInGuestViaApi(
@@ -96,11 +118,12 @@ export async function checkInGuestViaApi(
 ): Promise<{
   allocation: AllocationResult;
   responseTimeMs: number;
+  persistedToDb?: boolean;
   xaiLog?: XaiAuditLog;
   agentEvent?: AgentEvent;
 } | null> {
   try {
-    const resp = await fetch('/api/bookings/check-in', {
+    const resp = await fetch(resolveApiUrl('/api/bookings/check-in'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bookingIdOrPartyId, weights }),
@@ -109,6 +132,7 @@ export async function checkInGuestViaApi(
     return (await resp.json()) as {
       allocation: AllocationResult;
       responseTimeMs: number;
+      persistedToDb?: boolean;
       xaiLog?: XaiAuditLog;
       agentEvent?: AgentEvent;
     };
@@ -124,7 +148,7 @@ export async function validateOrderIngredients(
 ): Promise<OrderIngredientValidationResponse & { agentEvent?: AgentEvent }> {
   const t0 = performance.now();
   try {
-    const resp = await fetch('/api/orders/validate-ingredients', {
+    const resp = await fetch(resolveApiUrl('/api/orders/validate-ingredients'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -139,6 +163,7 @@ export async function validateOrderIngredients(
       };
       return {
         ...data,
+        persistedToDb: Boolean(data.persistedToDb),
         responseTimeMs: Math.max(
           20,
           Math.round(data.responseTimeMs || performance.now() - t0),
@@ -149,16 +174,22 @@ export async function validateOrderIngredients(
     // Graceful local fallback
   }
 
-  return validateOrderIngredientsWorkflow(payload, menuDishes, ingredients);
+  return {
+    ...validateOrderIngredientsWorkflow(payload, menuDishes, ingredients),
+    persistedToDb: false,
+  };
 }
 
 export async function advanceOrderStatusApi(
   orderId: string,
 ): Promise<KitchenOrder | null> {
   try {
-    const resp = await fetch(`/api/orders/${encodeURIComponent(orderId)}/advance`, {
-      method: 'PATCH',
-    });
+    const resp = await fetch(
+      resolveApiUrl(`/api/orders/${encodeURIComponent(orderId)}/advance`),
+      {
+        method: 'PATCH',
+      },
+    );
     if (!resp.ok) return null;
     const data = (await resp.json()) as { order?: KitchenOrder };
     return data.order ?? null;
@@ -173,7 +204,7 @@ export async function updateIngredientStockApi(
 ): Promise<IngredientItem | null> {
   try {
     const resp = await fetch(
-      `/api/ingredients/${encodeURIComponent(ingredientId)}`,
+      resolveApiUrl(`/api/ingredients/${encodeURIComponent(ingredientId)}`),
       {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -194,11 +225,14 @@ export async function updateTableStateApi(
   course?: CourseStage,
 ): Promise<RestaurantTable | null> {
   try {
-    const resp = await fetch(`/api/tables/${encodeURIComponent(tableId)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, course }),
-    });
+    const resp = await fetch(
+      resolveApiUrl(`/api/tables/${encodeURIComponent(tableId)}`),
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, course }),
+      },
+    );
     if (!resp.ok) return null;
     const data = (await resp.json()) as { table?: RestaurantTable };
     return data.table ?? null;
@@ -214,7 +248,7 @@ export async function stepSimulationTickApi(tickCount: number): Promise<{
   newEvents: AgentEvent[];
 } | null> {
   try {
-    const resp = await fetch('/api/simulation/tick', {
+    const resp = await fetch(resolveApiUrl('/api/simulation/tick'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tickCount }),
@@ -233,7 +267,9 @@ export async function stepSimulationTickApi(tickCount: number): Promise<{
 
 export async function resetFloorApi(): Promise<HydratedFloorPayload | null> {
   try {
-    const resp = await fetch('/api/floor/reset', { method: 'POST' });
+    const resp = await fetch(resolveApiUrl('/api/floor/reset'), {
+      method: 'POST',
+    });
     if (!resp.ok) return null;
     const data = (await resp.json()) as HydratedFloorPayload & { ok?: boolean };
     return data.ok ? data : null;
@@ -250,7 +286,7 @@ export async function allocateTableViaAStar(
 ): Promise<{ result: AllocationResult; responseTimeMs: number }> {
   const t0 = performance.now();
   try {
-    const resp = await fetch('/api/ai/allocate-table', {
+    const resp = await fetch(resolveApiUrl('/api/ai/allocate-table'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -293,7 +329,7 @@ export async function queryMaitreDRag(params: {
   >
 > {
   const t0 = performance.now();
-  const resp = await fetch(`${API_BASE}/api/groq/chat`, {
+  const resp = await fetch(resolveApiUrl('/api/groq/chat'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),

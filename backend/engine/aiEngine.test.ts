@@ -25,6 +25,7 @@ import {
   buildGroqKnowledgeContext,
   evaluateGroundedMaitreD,
   HALLUCINATION_REFUSAL_TEXT,
+  isExplicitOutOfScopeQuery,
 } from './ragGrounding';
 import {
   classifyTableForBooking,
@@ -400,4 +401,40 @@ test('Groq RAG Grounding handles nut-free allergens, wheelchair party of 5, cont
   assert.ok(contextStr.includes('11:30 AM'));
 });
 
+test('Groq RAG Grounding handles greetings/identity naturally, answers menu queries, and strictly refuses out-of-scope traps', () => {
+  const greeting = evaluateGroundedMaitreD(
+    'hi who you are',
+    INITIAL_TABLES,
+    INITIAL_QUEUE,
+    INITIAL_WAITERS,
+    INITIAL_INGREDIENTS,
+    INITIAL_RESERVATIONS,
+  );
+  assert.equal(greeting.refusalTriggered, false);
+  assert.ok(greeting.reply.includes('Khana-Khazana'));
+  assert.ok(isExplicitOutOfScopeQuery('hi who you are') === false);
+
+  const menuAsk = evaluateGroundedMaitreD(
+    'What signature dishes do you recommend and what are prices?',
+    INITIAL_TABLES,
+    INITIAL_QUEUE,
+    INITIAL_WAITERS,
+    INITIAL_INGREDIENTS,
+    INITIAL_RESERVATIONS,
+  );
+  assert.equal(menuAsk.refusalTriggered, false);
+  assert.ok(menuAsk.reply.includes('₹'));
+
+  assert.equal(isExplicitOutOfScopeQuery('Do you have a rooftop pool?'), true);
+  const weatherRefusal = evaluateGroundedMaitreD(
+    'What is the weather outside?',
+    INITIAL_TABLES,
+    INITIAL_QUEUE,
+    INITIAL_WAITERS,
+    INITIAL_INGREDIENTS,
+    INITIAL_RESERVATIONS,
+  );
+  assert.equal(weatherRefusal.refusalTriggered, true);
+  assert.equal(weatherRefusal.reply, HALLUCINATION_REFUSAL_TEXT);
+});
 

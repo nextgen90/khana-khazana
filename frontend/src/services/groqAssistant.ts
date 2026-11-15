@@ -11,8 +11,7 @@ import {
   evaluateGroundedMaitreD,
   HALLUCINATION_REFUSAL_TEXT,
 } from '../../../backend/engine/ragGrounding';
-
-const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '');
+import { resolveApiUrl } from '../api/backendService';
 
 export interface GroqAssistantQueryParams {
   message: string;
@@ -40,7 +39,7 @@ export interface GroqHealthStatus {
 
 export async function fetchGroqHealthStatus(): Promise<GroqHealthStatus> {
   try {
-    const resp = await fetch(`${API_BASE}/api/health`);
+    const resp = await fetch(resolveApiUrl('/api/health'));
     if (!resp.ok) {
       return {
         groqConfigured: false,
@@ -73,7 +72,7 @@ export async function queryGroqAssistant(
   const t0 = performance.now();
 
   try {
-    const resp = await fetch(`${API_BASE}/api/groq/chat`, {
+    const resp = await fetch(resolveApiUrl('/api/groq/chat'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),

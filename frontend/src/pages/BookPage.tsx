@@ -638,7 +638,9 @@ export function BookPage() {
                   <strong className="text-[#047857]">
                     {bookingResult.reservation.assignedTableIds.join(' + ')}
                   </strong>{' '}
-                  is locked and your QR pass was dispatched to{' '}
+                  {bookingResult.persistedToDb === false
+                    ? 'is reserved in your local session (NeonDB API unreachable) and pass generated for '
+                    : 'is locked in NeonDB and your QR pass was dispatched to '}
                   <span className="font-mono text-xs text-neutral-700">
                     {bookingResult.reservation.email}
                   </span>
@@ -828,9 +830,19 @@ export function BookPage() {
                       · {bookingResult.reservation.partySize} Guests ·{' '}
                       {bookingResult.reservation.bayesianConfidencePct}% Confidence
                     </p>
-                    <div className="flex items-center gap-2 font-mono text-[11px] text-[#047857]">
+                    <div
+                      className={`flex items-center gap-2 font-mono text-[11px] ${
+                        bookingResult.persistedToDb === false
+                          ? 'text-amber-700'
+                          : 'text-[#047857]'
+                      }`}
+                    >
                       <Clock className="w-3.5 h-3.5" />
-                      <span>Synced live to Admin Floor Command</span>
+                      <span>
+                        {bookingResult.persistedToDb === false
+                          ? 'Local session only (connect NeonDB backend to persist)'
+                          : 'Committed to NeonDB & synced live to Admin Floor'}
+                      </span>
                     </div>
                   </div>
                 </div>

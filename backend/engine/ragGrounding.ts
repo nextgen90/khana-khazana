@@ -32,9 +32,28 @@ const OUT_OF_SCOPE_PATTERNS = [
   /bowling/i,
   /pet\s*groom/i,
   /cryptocurrency/i,
+  /\bbitcoin\b/i,
   /stock\s*price/i,
   /weather/i,
+  /\bflight\b/i,
+  /\bmovie\b/i,
+  /president/i,
+  /prime\s*minister/i,
+  /capital\s+of/i,
 ];
+
+const GREETING_IDENTITY_PATTERNS = [
+  /^\s*(hi|hello|hey|namaste|good\s*(morning|afternoon|evening))\b/i,
+  /\bwho\s+(are\s+you|you\s+are|is\s+this)\b/i,
+  /\bwhat\s+(are\s+you|can\s+you\s+do|do\s+you\s+do)\b/i,
+  /\btell\s+me\s+about\s+(yourself|khana)\b/i,
+  /\bhelp\b/i,
+  /khana[-\s]?khazana/i,
+];
+
+export function isExplicitOutOfScopeQuery(query: string): boolean {
+  return OUT_OF_SCOPE_PATTERNS.some((rx) => rx.test(query.toLowerCase()));
+}
 
 const IN_DOMAIN_KEYWORDS = [
   'table',
@@ -81,6 +100,22 @@ const IN_DOMAIN_KEYWORDS = [
   'rohan',
   'menu',
   'dish',
+  'food',
+  'eat',
+  'recommend',
+  'suggest',
+  'popular',
+  'signature',
+  'best',
+  'price',
+  'cost',
+  'veg',
+  'vegetarian',
+  'non-veg',
+  'spicy',
+  'dessert',
+  'sweet',
+  'butter naan',
   'paneer',
   'truffle',
   'dal',
@@ -204,16 +239,7 @@ export function evaluateGroundedMaitreD(
 ): { reply: string; sources: string[]; refusalTriggered: boolean } {
   const q = query.toLowerCase().trim();
 
-  if (OUT_OF_SCOPE_PATTERNS.some((rx) => rx.test(q))) {
-    return {
-      reply: HALLUCINATION_REFUSAL_TEXT,
-      sources: ['[restaurant_policies.md]', '[live_floor_db]'],
-      refusalTriggered: true,
-    };
-  }
-
-  const hasDomainAnchor = IN_DOMAIN_KEYWORDS.some((kw) => q.includes(kw));
-  if (!hasDomainAnchor) {
+  if (isExplicitOutOfScopeQuery(q)) {
     return {
       reply: HALLUCINATION_REFUSAL_TEXT,
       sources: ['[restaurant_policies.md]', '[live_floor_db]'],
@@ -226,6 +252,25 @@ export function evaluateGroundedMaitreD(
   const payingTables = tables.filter((t) => t.status === 'Paying');
   const waiting = queue.filter((p) => p.status === 'WAITING');
   const eff = computeFloorEfficiency(tables);
+
+  const isGreetingOrIdentity = GREETING_IDENTITY_PATTERNS.some((rx) => rx.test(q));
+  const hasDomainAnchor = IN_DOMAIN_KEYWORDS.some((kw) => q.includes(kw));
+
+  if (isGreetingOrIdentity && !hasDomainAnchor) {
+    return {
+      reply: `Namaste! I am the Khana-Khazana Grounded AI Concierge (${RESTAURANT_POLICIES.hours}, zones: Window, Main Hall & VIP Lounge). Currently ${freeTables.length}/${tables.length} tables are Free with ${waiting.length} queued parties—ask me about wheelchair seating (T3 + T4), nut-free or gluten-free dishes, live kitchen ingredient stock, or VIP policies.`,
+      sources: ['[restaurant_policies.md]', '[live_floor_db]'],
+      refusalTriggered: false,
+    };
+  }
+
+  if (!hasDomainAnchor) {
+    return {
+      reply: HALLUCINATION_REFUSAL_TEXT,
+      sources: ['[restaurant_policies.md]', '[live_floor_db]'],
+      refusalTriggered: true,
+    };
+  }
 
   // 1. Live pantry / ingredient stock query
   if (
@@ -373,10 +418,24 @@ export function evaluateGroundedMaitreD(
     };
   }
 
-  // 5. Menu, Gluten-Free, Hours & Dietary
+  // 5. Menu, Culinary Recommendations, Prices, Gluten-Free, Hours & Dietary
   if (
     q.includes('menu') ||
     q.includes('dish') ||
+    q.includes('food') ||
+    q.includes('eat') ||
+    q.includes('recommend') ||
+    q.includes('suggest') ||
+    q.includes('popular') ||
+    q.includes('signature') ||
+    q.includes('best') ||
+    q.includes('price') ||
+    q.includes('cost') ||
+    q.includes('veg') ||
+    q.includes('non-veg') ||
+    q.includes('spicy') ||
+    q.includes('dessert') ||
+    q.includes('sweet') ||
     q.includes('paneer') ||
     q.includes('pizza') ||
     q.includes('biryani') ||
@@ -393,8 +452,11 @@ export function evaluateGroundedMaitreD(
     const gfDishes = SIGNATURE_MENU_KNOWLEDGE_BASE.filter((d) => d.glutenFree)
       .map((d) => `${d.name} (₹${d.price})`)
       .join(', ');
+    const signaturePrices = MENU_DISHES.slice(0, 4)
+      .map((d) => `${d.name} (₹${d.price})`)
+      .join(', ');
     return {
-      reply: `Hours: ${RESTAURANT_POLICIES.hours}. ${RESTAURANT_POLICIES_CHUNKS[3].content} Verified Gluten-Free selections: ${gfDishes}.`,
+      reply: `Hours: ${RESTAURANT_POLICIES.hours}. Signature highlights include ${signaturePrices}. ${RESTAURANT_POLICIES_CHUNKS[3].content} Verified Gluten-Free selections: ${gfDishes}.`,
       sources: ['[restaurant_policies.md]', '[live_floor_db]'],
       refusalTriggered: false,
     };

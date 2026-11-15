@@ -30,6 +30,7 @@ export function Navbar() {
     portalMode,
     setPortalMode,
     navigate,
+    dbConnected,
     lastLatencyMs,
   } = useRestaurant();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -163,14 +164,24 @@ export function Navbar() {
         <div className="flex items-center gap-2 shrink-0">
           <span
             className={`hidden lg:inline-flex items-center gap-1.5 font-mono text-[10px] xl:text-[10.5px] font-medium whitespace-nowrap tabular-nums ${
-              isLightHeader ? 'text-[#047857]' : 'text-emerald-300'
+              dbConnected
+                ? isLightHeader
+                  ? 'text-[#047857]'
+                  : 'text-emerald-300'
+                : isLightHeader
+                ? 'text-amber-700'
+                : 'text-amber-300'
             }`}
           >
             <span
               aria-hidden="true"
-              className="w-1.5 h-1.5 rounded-full bg-[#059669] inline-block shrink-0"
+              className={`w-1.5 h-1.5 rounded-full inline-block shrink-0 ${
+                dbConnected ? 'bg-[#059669]' : 'bg-amber-500'
+              }`}
             />
-            NeonDB: {lastLatencyMs}ms | Groq GPT-OSS-120B
+            {dbConnected
+              ? `NeonDB: ${lastLatencyMs}ms | Groq GPT-OSS-120B`
+              : 'Local Mode (DB Offline) | Groq GPT-OSS-120B'}
           </span>
 
           <button

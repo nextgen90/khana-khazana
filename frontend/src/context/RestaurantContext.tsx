@@ -270,6 +270,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     ): Promise<BookingValidationResponse> => {
       const resp = await validateAndCreateBooking(req, tables, reservations);
       setLastLatencyMs(resp.responseTimeMs);
+      setDbConnected(Boolean(resp.persistedToDb));
 
       if (resp.fulfillable && resp.reservation) {
         const rec = resp.reservation;
@@ -368,6 +369,9 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
         queue.filter((p) => p.status === 'WAITING').length - 1,
       );
       const apiCheckIn = await checkInGuestViaApi(bookingIdOrPartyId, weights);
+      if (apiCheckIn) {
+        setDbConnected(Boolean(apiCheckIn.persistedToDb));
+      }
       const { result, responseTimeMs } = apiCheckIn
         ? {
             result: apiCheckIn.allocation,
@@ -487,6 +491,9 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
         ingredients,
       );
       setLastLatencyMs(resp.responseTimeMs);
+      if (resp.ok) {
+        setDbConnected(Boolean(resp.persistedToDb));
+      }
 
       if (resp.ok && resp.order && resp.updatedIngredients) {
         setIngredients(resp.updatedIngredients);

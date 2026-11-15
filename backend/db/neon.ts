@@ -1,7 +1,5 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { Pool, type PoolClient } from 'pg';
+import { SCHEMA_SQL } from './schemaSql';
 import {
   INITIAL_AGENT_EVENTS,
   INITIAL_INGREDIENTS,
@@ -28,9 +26,6 @@ import type {
   WaitingParty,
   XaiAuditLog,
 } from '../engine/types';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 let pool: Pool | null = null;
 let schemaReadyPromise: Promise<boolean> | null = null;
@@ -294,10 +289,8 @@ export async function ensureSchemaAndSeed(): Promise<boolean> {
     if (!db) return false;
 
     try {
-      const schemaPath = path.resolve(__dirname, 'schema.sql');
-      const ddl = fs.readFileSync(schemaPath, 'utf-8');
       await withTransaction(async (client) => {
-        await client.query(ddl);
+        await client.query(SCHEMA_SQL);
         const { rows } = await client.query<{ count: string }>(
           'SELECT COUNT(*)::text AS count FROM restaurant_tables',
         );

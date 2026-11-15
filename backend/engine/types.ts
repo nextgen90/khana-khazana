@@ -233,6 +233,7 @@ export interface ReservationRecord {
 export interface BookingValidationResponse {
   fulfillable: boolean;
   responseTimeMs: number;
+  persistedToDb?: boolean;
   reservation?: ReservationRecord;
   emailPreview?: {
     to: string;
@@ -321,6 +322,7 @@ export interface OutOfStockConflict {
 export interface OrderIngredientValidationResponse {
   ok: boolean;
   responseTimeMs: number;
+  persistedToDb?: boolean;
   order?: KitchenOrder;
   updatedIngredients?: IngredientItem[];
   conflicts?: OutOfStockConflict[];
