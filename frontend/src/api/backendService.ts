@@ -43,13 +43,15 @@ export interface HydratedFloorPayload {
   xaiLogs: XaiAuditLog[];
 }
 
-export function resolveApiBase(): string {
-  const raw = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/+$/, '');
+export function normalizeApiBase(rawInput: string, browserHostname?: string): string {
+  const raw = rawInput.trim().replace(/\/+$/, '');
   if (!raw) return '';
-  if (typeof window !== 'undefined') {
+  if (!/^https?:\/\/[^/\s]+/i.test(raw)) {
+    return '';
+  }
+  if (browserHostname) {
     const isBrowserLocal =
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1';
+      browserHostname === 'localhost' || browserHostname === '127.0.0.1';
     const isConfiguredLocal =
       /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(raw);
     if (!isBrowserLocal && isConfiguredLocal) {
@@ -57,6 +59,13 @@ export function resolveApiBase(): string {
     }
   }
   return raw;
+}
+
+export function resolveApiBase(): string {
+  const raw = import.meta.env?.VITE_API_BASE_URL ?? '';
+  const hostname =
+    typeof window !== 'undefined' ? window.location.hostname : undefined;
+  return normalizeApiBase(raw, hostname);
 }
 
 export function resolveApiUrl(apiPath: string): string {

@@ -151,6 +151,7 @@ export function createApiApp(): Express {
       }
       res.json({ ok: true, ...snap });
     } catch (err) {
+      console.error('[/api/floor/state] Error:', err);
       res.status(500).json({
         ok: false,
         error: err instanceof Error ? err.message : 'Failed to fetch floor state',
@@ -251,6 +252,7 @@ export function createApiApp(): Express {
         responseTimeMs: Math.max(25, Math.round(performance.now() - t0)),
       });
     } catch (err) {
+      console.error('[/api/bookings/validate] Error:', err);
       res.status(500).json({
         error: err instanceof Error ? err.message : 'Booking validation failed',
       });
@@ -372,6 +374,7 @@ export function createApiApp(): Express {
         agentEvent,
       });
     } catch (err) {
+      console.error('[/api/bookings/check-in] Error:', err);
       res.status(500).json({
         error: err instanceof Error ? err.message : 'Check-in failed',
       });
@@ -457,6 +460,7 @@ export function createApiApp(): Express {
         responseTimeMs: Math.max(20, Math.round(performance.now() - t0)),
       });
     } catch (err) {
+      console.error('[/api/orders/validate-ingredients] Error:', err);
       res.status(500).json({
         error: err instanceof Error ? err.message : 'Order validation failed',
       });

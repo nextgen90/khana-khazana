@@ -438,3 +438,13 @@ test('Groq RAG Grounding handles greetings/identity naturally, answers menu quer
   assert.equal(weatherRefusal.reply, HALLUCINATION_REFUSAL_TEXT);
 });
 
+import { normalizeApiBase } from '../../frontend/src/api/backendService';
+
+test('normalizeApiBase rejects bare port strings like 3000 and localhost URLs on remote hosts', () => {
+  assert.equal(normalizeApiBase('3000', 'khana-khazana-dun.vercel.app'), '');
+  assert.equal(normalizeApiBase('localhost:3000', 'khana-khazana-dun.vercel.app'), '');
+  assert.equal(normalizeApiBase('http://localhost:8000', 'khana-khazana-dun.vercel.app'), '');
+  assert.equal(normalizeApiBase('http://localhost:3000', 'localhost'), 'http://localhost:3000');
+  assert.equal(normalizeApiBase('https://api.khana-khazana.app/', 'khana-khazana-dun.vercel.app'), 'https://api.khana-khazana.app');
+});
+
