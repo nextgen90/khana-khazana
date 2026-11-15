@@ -180,7 +180,7 @@ async function seedInitialData(client: PoolClient): Promise<void> {
         id, name, category, description, price, prep_mins,
         dietary_tags, is_veg, image, recipe, substitute_dish_ids
       ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10::jsonb,$11::jsonb)
-      ON CONFLICT (id) DO NOTHING`,
+      ON CONFLICT (id) DO UPDATE SET image = EXCLUDED.image`,
       [
         dish.id,
         dish.name,

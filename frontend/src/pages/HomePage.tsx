@@ -244,7 +244,7 @@ export function HomePage() {
             <div className="relative flex-1 min-h-[280px] overflow-hidden bg-[#E5DAC6]">
               {!heroPlateFailed ? (
                 <img
-                  src="/src/assets/images/culinary_heritage_plating_1794675538229.jpg"
+                  src="/images/culinary_heritage_plating_1794675538229.jpg"
                   alt="Khana-Khazana Fine Indian Culinary Plating"
                   referrerPolicy="no-referrer"
                   onError={() => setHeroPlateFailed(true)}

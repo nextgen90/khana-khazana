@@ -29,7 +29,7 @@ export const HERO_DISH_SLIDES: HeroDishSlide[] = [
       'Velvety tomato-cashew makhani gravy paired with charred garlic butter naan',
     prepMins: 14,
     price: 540,
-    image: '/src/assets/images/food_paneer_naan_1794676918929.jpg',
+    image: '/images/food_paneer_naan_1794676918929.jpg',
   },
   {
     id: 'slide-chicken-paratha',
@@ -39,7 +39,7 @@ export const HERO_DISH_SLIDES: HeroDishSlide[] = [
       'Slow-roasted pepper chicken curry served with crisp layered paratha',
     prepMins: 18,
     price: 470,
-    image: '/src/assets/images/food_chicken_paratha_1794676918657.jpg',
+    image: '/images/food_chicken_paratha_1794676918657.jpg',
   },
   {
     id: 'slide-pizza',
@@ -49,7 +49,7 @@ export const HERO_DISH_SLIDES: HeroDishSlide[] = [
       'Blistered sourdough crust, melted mozzarella, wild mushrooms & basil',
     prepMins: 15,
     price: 430,
-    image: '/src/assets/images/food_artisan_pizza_1794676918698.jpg',
+    image: '/images/food_artisan_pizza_1794676918698.jpg',
   },
   {
     id: 'slide-gulab-jamun',
@@ -59,7 +59,7 @@ export const HERO_DISH_SLIDES: HeroDishSlide[] = [
       'Khoya dumplings soaked in cardamom-rose syrup, topped with silver varq & pistachio',
     prepMins: 8,
     price: 220,
-    image: '/src/assets/images/food_gulab_jamun_1794676919306.jpg',
+    image: '/images/food_gulab_jamun_1794676919306.jpg',
   },
   {
     id: 'slide-biryani',
@@ -69,7 +69,7 @@ export const HERO_DISH_SLIDES: HeroDishSlide[] = [
       'Long-grain aged basmati layered with caramelized onions, saffron & aromatic spices',
     prepMins: 20,
     price: 490,
-    image: '/src/assets/images/food_dum_biryani_1794676920335.jpg',
+    image: '/images/food_dum_biryani_1794676920335.jpg',
   },
 ];
 
