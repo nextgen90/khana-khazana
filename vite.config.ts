@@ -5,10 +5,17 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    root: path.resolve(__dirname, 'frontend'),
+    publicDir: path.resolve(__dirname, 'frontend/public'),
+    build: {
+      outDir: path.resolve(__dirname, 'dist'),
+      emptyOutDir: true,
+    },
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(__dirname, 'frontend/src'),
+        '@backend': path.resolve(__dirname, 'backend'),
       },
     },
     server: {
@@ -17,6 +24,9 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      fs: {
+        allow: [path.resolve(__dirname)],
+      },
     },
   };
 });
