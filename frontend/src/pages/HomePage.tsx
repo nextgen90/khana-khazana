@@ -34,7 +34,9 @@ export function HomePage() {
 
   const freeCount = tables.filter((t) => t.status === 'Free').length;
   const payingCount = tables.filter((t) => t.status === 'Paying').length;
-  const activeOrdersCount = orders.length;
+  const activeOrdersCount = orders.filter((o) => o.status !== 'Served').length;
+  const tableT3 = tables.find((t) => t.id === 'T3');
+  const t3BookingId = tableT3?.activeBookingId ?? null;
 
   const maxExpandedNodes = Math.max(
     1,
@@ -221,7 +223,7 @@ export function HomePage() {
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#DC2626] hover:bg-[#B91C1C] text-white font-semibold text-sm transition-colors"
               >
                 <QrCode className="w-4 h-4" />
-                Scan Table T3 QR Menu
+                Order at Table T3 (QR Menu)
                 <ArrowRight className="w-4 h-4" />
               </button>
 
@@ -261,20 +263,26 @@ export function HomePage() {
             <div className="p-6 sm:p-8 border-t border-[#DCD0BE] flex flex-col sm:flex-row items-center justify-between gap-6">
               <div className="space-y-1.5">
                 <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#059669] font-semibold">
-                  Active Digital Pass
+                  {t3BookingId ? `Active Dining Pass · ${t3BookingId}` : 'Instant Table QR Ordering'}
                 </p>
                 <h3 className="font-serif text-2xl font-bold text-[#111827]">
                   Table T3 · Lotus West
                 </h3>
                 <p className="text-xs text-neutral-600">
-                  Bound to Booking KK-8942 · Atomic recipe pantry protection enabled
+                  {t3BookingId
+                    ? `Bound to Booking ${t3BookingId} · Atomic recipe pantry protection enabled`
+                    : 'Step-Free Main Hall · Atomic recipe pantry protection enabled'}
                 </p>
               </div>
               <div className="shrink-0">
                 <QRCodeSvg
-                  value="https://khana-khazana.app/table/T3/menu?pass=KK-8942"
+                  value={
+                    t3BookingId
+                      ? `https://khana-khazana.app/table/T3/menu?booking=${t3BookingId}`
+                      : 'https://khana-khazana.app/table/T3/menu'
+                  }
                   size={104}
-                  label="TABLE T3 · PASS KK-8942"
+                  label={t3BookingId ? `TABLE T3 · PASS ${t3BookingId}` : 'TABLE T3 · QR MENU'}
                 />
               </div>
             </div>

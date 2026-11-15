@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   needs_wheelchair BOOLEAN NOT NULL DEFAULT FALSE,
   is_vip BOOLEAN NOT NULL DEFAULT FALSE,
   special_requests TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL CHECK (status IN ('CONFIRMED', 'CHECKED_IN', 'SEATED')),
+  status TEXT NOT NULL CHECK (status IN ('CONFIRMED', 'CHECKED_IN', 'SEATED', 'COMPLETED', 'CANCELLED')),
   assigned_table_ids JSONB NOT NULL,
   qr_pass_code TEXT NOT NULL,
   triggered_rules JSONB NOT NULL,
@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS kitchen_orders (
   items JSONB NOT NULL,
   total_amount INTEGER NOT NULL CHECK (total_amount >= 0),
   prep_time_mins INTEGER NOT NULL CHECK (prep_time_mins > 0),
-  status TEXT NOT NULL CHECK (status IN ('Order Received', 'Preparing', 'Waiter En Route')),
+  status TEXT NOT NULL CHECK (status IN ('Order Received', 'Preparing', 'Waiter En Route', 'Served')),
   dispatched_agent_id TEXT NOT NULL,
   created_at TEXT NOT NULL,
   created_ts TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -138,4 +138,10 @@ CREATE TABLE IF NOT EXISTS xai_audit_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_xai_audit_created ON xai_audit_logs (created_ts DESC);
+
+ALTER TABLE reservations DROP CONSTRAINT IF EXISTS reservations_status_check;
+ALTER TABLE reservations ADD CONSTRAINT reservations_status_check CHECK (status IN ('CONFIRMED', 'CHECKED_IN', 'SEATED', 'COMPLETED', 'CANCELLED'));
+
+ALTER TABLE kitchen_orders DROP CONSTRAINT IF EXISTS kitchen_orders_status_check;
+ALTER TABLE kitchen_orders ADD CONSTRAINT kitchen_orders_status_check CHECK (status IN ('Order Received', 'Preparing', 'Waiter En Route', 'Served'));
 `;

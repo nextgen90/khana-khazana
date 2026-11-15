@@ -37,718 +37,6 @@ module.exports = __toCommonJS(vercelHandler_exports);
 var import_config = require("dotenv/config");
 var import_express = __toESM(require("express"), 1);
 
-// backend/engine/data.ts
-var INITIAL_TABLES = [
-  {
-    id: "T1",
-    label: "T1 \xB7 Golden Bay Window",
-    capacity: 2,
-    zone: "Window",
-    isAccessible: false,
-    isVipBooth: false,
-    combinableWith: null,
-    status: "Occupied",
-    currentCourse: "Mains",
-    elapsedMins: 34,
-    assignedPartyId: "S-01",
-    assignedPartyName: "Rao Couple",
-    assignedPartySize: 2,
-    activeBookingId: "KK-7401",
-    gridCol: 0,
-    gridRow: 0
-  },
-  {
-    id: "T2",
-    label: "T2 \xB7 Brass Hearth Two-Top",
-    capacity: 2,
-    zone: "Main Hall",
-    isAccessible: true,
-    isVipBooth: false,
-    combinableWith: null,
-    status: "Dirty",
-    currentCourse: "None",
-    elapsedMins: 0,
-    assignedPartyId: null,
-    assignedPartyName: null,
-    assignedPartySize: null,
-    activeBookingId: null,
-    gridCol: 1,
-    gridRow: 0
-  },
-  {
-    id: "T3",
-    label: "T3 \xB7 Lotus West",
-    capacity: 4,
-    zone: "Main Hall",
-    isAccessible: true,
-    isVipBooth: false,
-    combinableWith: "T4",
-    status: "Free",
-    currentCourse: "None",
-    elapsedMins: 0,
-    assignedPartyId: null,
-    assignedPartyName: null,
-    assignedPartySize: null,
-    activeBookingId: "KK-8942",
-    gridCol: 2,
-    gridRow: 0
-  },
-  {
-    id: "T4",
-    label: "T4 \xB7 Lotus East",
-    capacity: 4,
-    zone: "Main Hall",
-    isAccessible: true,
-    isVipBooth: false,
-    combinableWith: "T3",
-    status: "Free",
-    currentCourse: "None",
-    elapsedMins: 0,
-    assignedPartyId: null,
-    assignedPartyName: null,
-    assignedPartySize: null,
-    activeBookingId: null,
-    gridCol: 3,
-    gridRow: 0
-  },
-  {
-    id: "T5",
-    label: "T5 \xB7 Skyline Window North",
-    capacity: 4,
-    zone: "Window",
-    isAccessible: false,
-    isVipBooth: false,
-    combinableWith: "T6",
-    status: "Paying",
-    currentCourse: "Billing",
-    elapsedMins: 52,
-    assignedPartyId: "S-02",
-    assignedPartyName: "Mehta Quartet",
-    assignedPartySize: 4,
-    activeBookingId: "KK-7512",
-    gridCol: 0,
-    gridRow: 1
-  },
-  {
-    id: "T6",
-    label: "T6 \xB7 Skyline Window South",
-    capacity: 4,
-    zone: "Window",
-    isAccessible: false,
-    isVipBooth: false,
-    combinableWith: "T5",
-    status: "Occupied",
-    currentCourse: "Dessert",
-    elapsedMins: 44,
-    assignedPartyId: "S-03",
-    assignedPartyName: "Sen Family",
-    assignedPartySize: 3,
-    activeBookingId: "KK-7618",
-    gridCol: 1,
-    gridRow: 1
-  },
-  {
-    id: "T7",
-    label: "T7 \xB7 Saffron Corner",
-    capacity: 2,
-    zone: "Window",
-    isAccessible: true,
-    isVipBooth: false,
-    combinableWith: null,
-    status: "Free",
-    currentCourse: "None",
-    elapsedMins: 0,
-    assignedPartyId: null,
-    assignedPartyName: null,
-    assignedPartySize: null,
-    activeBookingId: null,
-    gridCol: 2,
-    gridRow: 1
-  },
-  {
-    id: "T8",
-    label: "T8 \xB7 Imperial Velvet Salon",
-    capacity: 6,
-    zone: "VIP Lounge",
-    isAccessible: false,
-    isVipBooth: true,
-    combinableWith: "T9",
-    status: "Free",
-    currentCourse: "None",
-    elapsedMins: 0,
-    assignedPartyId: null,
-    assignedPartyName: null,
-    assignedPartySize: null,
-    activeBookingId: null,
-    gridCol: 3,
-    gridRow: 1
-  },
-  {
-    id: "T9",
-    label: "T9 \xB7 Sovereign Suite",
-    capacity: 4,
-    zone: "VIP Lounge",
-    isAccessible: true,
-    isVipBooth: true,
-    combinableWith: "T8",
-    status: "Occupied",
-    currentCourse: "Appetizer",
-    elapsedMins: 14,
-    assignedPartyId: "S-04",
-    assignedPartyName: "Vikramaditya Party",
-    assignedPartySize: 4,
-    activeBookingId: "KK-7904",
-    gridCol: 0,
-    gridRow: 2
-  },
-  {
-    id: "T10",
-    label: "T10 \xB7 Heritage Chef Table",
-    capacity: 6,
-    zone: "Main Hall",
-    isAccessible: true,
-    isVipBooth: true,
-    combinableWith: null,
-    status: "Paying",
-    currentCourse: "Billing",
-    elapsedMins: 58,
-    assignedPartyId: "S-05",
-    assignedPartyName: "Chatterjee Guests",
-    assignedPartySize: 5,
-    activeBookingId: "KK-8010",
-    gridCol: 1,
-    gridRow: 2
-  }
-];
-var INITIAL_QUEUE = [
-  {
-    id: "P-101",
-    name: "Dr. Sharma Group",
-    size: 4,
-    isVip: false,
-    needsWheelchair: true,
-    preferredZone: "Main Hall",
-    dietaryNotes: "Step-free table requested",
-    waitMins: 6,
-    status: "WAITING",
-    bookingId: "KK-8942"
-  },
-  {
-    id: "P-102",
-    name: "Verma VIP Celebration",
-    size: 6,
-    isVip: true,
-    needsWheelchair: false,
-    preferredZone: "VIP Lounge",
-    dietaryNotes: "Anniversary tasting",
-    waitMins: 12,
-    status: "WAITING",
-    bookingId: "KK-8955"
-  },
-  {
-    id: "P-103",
-    name: "Aarav & Meera",
-    size: 2,
-    isVip: false,
-    needsWheelchair: false,
-    preferredZone: "Window",
-    dietaryNotes: "Window evening seating",
-    waitMins: 4,
-    status: "WAITING",
-    bookingId: "KK-8961"
-  },
-  {
-    id: "P-104",
-    name: "Kulkarni Family Eight",
-    size: 7,
-    isVip: false,
-    needsWheelchair: true,
-    preferredZone: "Main Hall",
-    dietaryNotes: "Jain options requested",
-    waitMins: 8,
-    status: "WAITING",
-    bookingId: "KK-8970"
-  }
-];
-var INITIAL_RESERVATIONS = [
-  {
-    bookingId: "KK-8942",
-    guestName: "Dr. Sharma Group",
-    email: "sharma.family@example.com",
-    phone: "+91 98201 44120",
-    dateTime: "2026-11-14T20:00",
-    partySize: 4,
-    preferredZone: "Main Hall",
-    needsWheelchair: true,
-    isVip: false,
-    specialRequests: "Wheelchair-friendly Main Hall dining",
-    status: "CONFIRMED",
-    assignedTableIds: ["T3"],
-    qrPassCode: "KK-QR-T3-8942",
-    triggeredRules: ["R1: Accessible Filter (isAccessible == true)", "Zone Match: Main Hall"],
-    bayesianConfidencePct: 100,
-    fScore: 0,
-    createdAt: "19:42:10"
-  },
-  {
-    bookingId: "KK-8955",
-    guestName: "Verma VIP Celebration",
-    email: "verma.vip@example.com",
-    phone: "+91 98112 77319",
-    dateTime: "2026-11-14T20:15",
-    partySize: 6,
-    preferredZone: "VIP Lounge",
-    needsWheelchair: false,
-    isVip: true,
-    specialRequests: "Anniversary saffron welcome",
-    status: "CONFIRMED",
-    assignedTableIds: ["T8"],
-    qrPassCode: "KK-QR-T8-8955",
-    triggeredRules: ["Zone Match: VIP Lounge", "R3: VIP Wait > 10m \u2192 Saffron Amuse-Bouche"],
-    bayesianConfidencePct: 100,
-    fScore: 0.5,
-    createdAt: "19:50:22"
-  }
-];
-var INITIAL_INGREDIENTS = [
-  {
-    id: "ing-truffle",
-    name: "Black Truffle Shavings",
-    unit: "g",
-    stock: 90,
-    parLevel: 120,
-    perOrderHighlight: "15g per Truffle Paneer Tikka"
-  },
-  {
-    id: "ing-paneer",
-    name: "Fresh Malai Paneer",
-    unit: "g",
-    stock: 2400,
-    parLevel: 3e3,
-    perOrderHighlight: "220g per Paneer dish"
-  },
-  {
-    id: "ing-saffron",
-    name: "Kashmiri Saffron Strands",
-    unit: "mg",
-    stock: 800,
-    parLevel: 1e3,
-    perOrderHighlight: "80mg per Biryani / Dessert"
-  },
-  {
-    id: "ing-lentils",
-    name: "24-Hour Simmered Black Lentils",
-    unit: "g",
-    stock: 3200,
-    parLevel: 4e3,
-    perOrderHighlight: "260g per Dal Makhani"
-  },
-  {
-    id: "ing-gf-penne",
-    name: "Artisan Gluten-Free Rice Penne",
-    unit: "g",
-    stock: 1100,
-    parLevel: 1500,
-    perOrderHighlight: "180g per Penne dish"
-  },
-  {
-    id: "ing-basmati",
-    name: "Aged Royal Basmati Rice",
-    unit: "g",
-    stock: 4e3,
-    parLevel: 5e3,
-    perOrderHighlight: "280g per Saffron Biryani"
-  },
-  {
-    id: "ing-mozzarella",
-    name: "Buffalo Mozzarella & San Marzano",
-    unit: "g",
-    stock: 1800,
-    parLevel: 2400,
-    perOrderHighlight: "200g per Stone Pizza"
-  },
-  {
-    id: "ing-khoya",
-    name: "Cardamom Khoya Dumplings",
-    unit: "pcs",
-    stock: 48,
-    parLevel: 60,
-    perOrderHighlight: "4 pcs per Gulab Jamun"
-  }
-];
-var MENU_DISHES = [
-  {
-    id: "dish-truffle-paneer",
-    name: "Truffle Paneer Tikka",
-    category: "Signature Starters",
-    description: "Char-grilled artisanal cottage cheese marinated in smoked yogurt, Kashmiri chili, and fresh black truffle shavings.",
-    price: 540,
-    prepMins: 14,
-    dietaryTags: ["Veg", "Chef Signature", "Gluten-Free"],
-    isVeg: true,
-    image: "/images/food_paneer_naan_1794676918929.jpg",
-    recipe: [
-      { ingredientId: "ing-truffle", amount: 15 },
-      { ingredientId: "ing-paneer", amount: 220 }
-    ],
-    substituteDishIds: ["dish-dal-makhani", "dish-margherita"]
-  },
-  {
-    id: "dish-dal-makhani",
-    name: "24-Hour Smoked Dal Makhani",
-    category: "Royal Mains",
-    description: "Slow-simmered black urad lentils finished with churned white butter, heirloom tomato puree, and organic cream.",
-    price: 420,
-    prepMins: 12,
-    dietaryTags: ["Veg", "House Classic"],
-    isVeg: true,
-    image: "/images/culinary_heritage_plating_1794675538229.jpg",
-    recipe: [{ ingredientId: "ing-lentils", amount: 260 }],
-    substituteDishIds: ["dish-truffle-paneer", "dish-saffron-biryani"]
-  },
-  {
-    id: "dish-saffron-biryani",
-    name: "Royal Saffron Dum Biryani",
-    category: "Royal Mains",
-    description: "Sealed brass-handi aged basmati rice layered with aromatic spices, caramelized shallots, and Kashmiri saffron.",
-    price: 490,
-    prepMins: 18,
-    dietaryTags: ["Gluten-Free", "Chef Signature"],
-    isVeg: false,
-    image: "/images/food_dum_biryani_1794676920335.jpg",
-    recipe: [
-      { ingredientId: "ing-basmati", amount: 280 },
-      { ingredientId: "ing-saffron", amount: 80 }
-    ],
-    substituteDishIds: ["dish-chicken-paratha", "dish-dal-makhani"]
-  },
-  {
-    id: "dish-gf-penne",
-    name: "Gluten-Free Masala Penne",
-    category: "Artisan & Global",
-    description: "Al dente rice-quinoa penne tossed in velvety roasted tomato-makhani emulsion, basil, and aged parmesan.",
-    price: 450,
-    prepMins: 14,
-    dietaryTags: ["Veg", "Gluten-Free"],
-    isVeg: true,
-    image: "/images/food_artisan_pizza_1794676918698.jpg",
-    recipe: [
-      { ingredientId: "ing-gf-penne", amount: 180 },
-      { ingredientId: "ing-mozzarella", amount: 120 }
-    ],
-    substituteDishIds: ["dish-margherita", "dish-dal-makhani"]
-  },
-  {
-    id: "dish-chicken-paratha",
-    name: "Homestyle Chicken & Flaky Paratha",
-    category: "Royal Mains",
-    description: "Slow-braised spiced chicken masala paired with hand-layered golden butter parathas straight from the tawa.",
-    price: 470,
-    prepMins: 16,
-    dietaryTags: ["Non-Veg", "House Favorite"],
-    isVeg: false,
-    image: "/images/food_chicken_paratha_1794676918657.jpg",
-    recipe: [{ ingredientId: "ing-basmati", amount: 120 }],
-    substituteDishIds: ["dish-saffron-biryani", "dish-dal-makhani"]
-  },
-  {
-    id: "dish-margherita",
-    name: "Wood-Fired Burrata Margherita",
-    category: "Artisan & Global",
-    description: "Stone-baked sourdough crust topped with San Marzano tomatoes, fresh buffalo mozzarella, and garden basil.",
-    price: 430,
-    prepMins: 11,
-    dietaryTags: ["Veg", "Stone-Baked"],
-    isVeg: true,
-    image: "/images/food_artisan_pizza_1794676918698.jpg",
-    recipe: [{ ingredientId: "ing-mozzarella", amount: 200 }],
-    substituteDishIds: ["dish-gf-penne", "dish-truffle-paneer"]
-  },
-  {
-    id: "dish-gulab-jamun",
-    name: "Warm Saffron & Pistachio Gulab Jamun",
-    category: "Desserts",
-    description: "Melt-in-the-mouth golden khoya dumplings steeped in warm cardamom-saffron syrup.",
-    price: 220,
-    prepMins: 8,
-    dietaryTags: ["Veg", "Sweet Classic"],
-    isVeg: true,
-    image: "/images/food_gulab_jamun_1794676919306.jpg",
-    recipe: [
-      { ingredientId: "ing-khoya", amount: 4 },
-      { ingredientId: "ing-saffron", amount: 40 }
-    ],
-    substituteDishIds: ["dish-dal-makhani", "dish-margherita"]
-  }
-];
-var INITIAL_ORDERS = [
-  {
-    orderId: "ORD-301",
-    tableId: "T1",
-    bookingId: "KK-7401",
-    items: [
-      {
-        dishId: "dish-dal-makhani",
-        name: "24-Hour Smoked Dal Makhani",
-        quantity: 1,
-        price: 420
-      },
-      {
-        dishId: "dish-saffron-biryani",
-        name: "Royal Saffron Dum Biryani",
-        quantity: 1,
-        price: 490
-      }
-    ],
-    totalAmount: 910,
-    prepTimeMins: 18,
-    status: "Preparing",
-    dispatchedAgentId: "W2",
-    createdAt: "20:10:15"
-  }
-];
-var INITIAL_WAITERS = [
-  {
-    id: "W1",
-    name: "W1 \xB7 Arjun",
-    role: "Waiter (Utility-Based)",
-    zone: "Main Hall",
-    currentAction: "ClearTable",
-    targetTableId: "T2",
-    energyPct: 86,
-    utilityScore: 0.92,
-    utilityBreakdown: {
-      urgency: 0.98,
-      vipBonus: 0.1,
-      distancePenalty: 0.02,
-      loadPenalty: 0.14,
-      totalUtility: 0.92
-    },
-    tasksCompleted: 14
-  },
-  {
-    id: "W2",
-    name: "W2 \xB7 Kavya",
-    role: "Waiter (Utility-Based)",
-    zone: "Window",
-    currentAction: "ServeOrder",
-    targetTableId: "T1",
-    energyPct: 81,
-    utilityScore: 0.89,
-    utilityBreakdown: {
-      urgency: 0.88,
-      vipBonus: 0.15,
-      distancePenalty: 0.02,
-      loadPenalty: 0.12,
-      totalUtility: 0.89
-    },
-    tasksCompleted: 11
-  },
-  {
-    id: "W3",
-    name: "W3 \xB7 Rohan",
-    role: "Waiter (Utility-Based)",
-    zone: "VIP Lounge",
-    currentAction: "ServeOrder",
-    targetTableId: "T9",
-    energyPct: 90,
-    utilityScore: 0.85,
-    utilityBreakdown: {
-      urgency: 0.72,
-      vipBonus: 0.25,
-      distancePenalty: 0.02,
-      loadPenalty: 0.1,
-      totalUtility: 0.85
-    },
-    tasksCompleted: 9
-  },
-  {
-    id: "Host-01",
-    name: "Host-01 \xB7 Concierge",
-    role: "Host (Goal-Based)",
-    zone: "Main Hall",
-    currentAction: "DispatchAStar",
-    targetTableId: "T3",
-    energyPct: 97,
-    utilityScore: 0.96,
-    utilityBreakdown: {
-      urgency: 0.9,
-      vipBonus: 0.12,
-      distancePenalty: 0.03,
-      loadPenalty: 0.03,
-      totalUtility: 0.96
-    },
-    tasksCompleted: 22
-  }
-];
-var INITIAL_AGENT_EVENTS = [
-  {
-    id: "evt-1",
-    tick: 0,
-    timestamp: "20:14:02",
-    agentId: "Host-01",
-    agentName: "Host-01 \xB7 Concierge",
-    agentType: "Host (Goal-Based)",
-    utilityScore: 0.96,
-    targetTableId: "T3",
-    message: "Host-01 locked KK-8942 (Dr. Sharma Group, step-free Main Hall) for Table T3 via Rule R1."
-  },
-  {
-    id: "evt-2",
-    tick: 0,
-    timestamp: "20:14:05",
-    agentId: "W1",
-    agentName: "W1 \xB7 Arjun",
-    agentType: "Waiter (Utility-Based)",
-    utilityScore: 0.92,
-    targetTableId: "T2",
-    message: "W1 Arjun selected ClearTable on T2 (Urgency 0.98 \u2212 Dist 0.02 \u2212 Load 0.14 = 0.92 utility)."
-  },
-  {
-    id: "evt-3",
-    tick: 0,
-    timestamp: "20:14:08",
-    agentId: "W2",
-    agentName: "W2 \xB7 Kavya",
-    agentType: "Waiter (Utility-Based)",
-    utilityScore: 0.89,
-    targetTableId: "T1",
-    message: "W2 Kavya dispatched kitchen order ORD-301 (Dal Makhani + Saffron Biryani) to Table T1."
-  }
-];
-var INITIAL_XAI_LOGS = [
-  {
-    id: "xai-1",
-    timestamp: "20:12:44",
-    partyName: "Vikramaditya Party",
-    partySize: 4,
-    assignedTables: ["T9"],
-    algorithm: "A* Search + Rule R1",
-    fScore: 0.5,
-    bayesianProb: 1,
-    rulesApplied: ["Zone Match: VIP Lounge", "R1: Accessible Verified"],
-    justification: "Assigned T9 (Sovereign Suite, 4 seats) with 0 wasted seats and VIP booth affinity bonus (-0.5)."
-  },
-  {
-    id: "xai-2",
-    timestamp: "20:08:19",
-    partyName: "Chatterjee Guests",
-    partySize: 5,
-    assignedTables: ["T10"],
-    algorithm: "A* Search",
-    fScore: 1,
-    bayesianProb: 1,
-    rulesApplied: ["R1: Accessible Filter", "Zone Match: Main Hall"],
-    justification: "Selected single 6-top T10 over merging T3+T4 (saving 2 seats waste and avoiding 3.5 merge penalty)."
-  }
-];
-var SIGNATURE_MENU_KNOWLEDGE_BASE = [
-  {
-    name: "Paneer Butter Masala with Butter Naan",
-    price: 420,
-    allergens: ["Dairy", "Gluten", "Cashews"],
-    nutFree: false,
-    glutenFree: false
-  },
-  {
-    name: "Spiced Chicken with Flaky Malabar Paratha",
-    price: 480,
-    allergens: ["Gluten", "Dairy"],
-    nutFree: true,
-    glutenFree: false
-  },
-  {
-    name: "Wood-Fired Truffle & Burrata Pizza",
-    price: 590,
-    allergens: ["Gluten", "Dairy"],
-    nutFree: true,
-    glutenFree: false
-  },
-  {
-    name: "Warm Saffron & Pistachio Gulab Jamun",
-    price: 240,
-    allergens: ["Dairy", "Pistachio", "Gluten"],
-    nutFree: false,
-    glutenFree: false
-  },
-  {
-    name: "Royal Zafrani Dum Biryani",
-    price: 510,
-    allergens: ["Dairy"],
-    nutFree: true,
-    glutenFree: true
-  },
-  {
-    name: "Truffle Paneer Tikka",
-    price: 540,
-    allergens: ["Dairy"],
-    nutFree: true,
-    glutenFree: true
-  },
-  {
-    name: "24-Hour Smoked Dal Makhani",
-    price: 420,
-    allergens: ["Dairy"],
-    nutFree: true,
-    glutenFree: true
-  },
-  {
-    name: "Gluten-Free Masala Penne",
-    price: 450,
-    allergens: ["Dairy"],
-    nutFree: true,
-    glutenFree: true
-  }
-];
-var RESTAURANT_POLICIES_CHUNKS = [
-  {
-    id: "POL-01",
-    section: "Operating Hours, Zones & Wheelchair Accessibility (Rule R1)",
-    sourceFile: "restaurant_policies.md",
-    content: "Open daily 11:30 AM \u2013 11:30 PM (kitchen closes 11:00 PM) across Main Hall, Window View, and VIP Lounge. Tables T2 (Main Hall, 2 seats), T3 & T4 (Main Hall, 4 seats each), T7 (Window, 2 seats), T9 (VIP Lounge, 4 seats), and T10 (Main Hall, 6 seats) provide step-free wheelchair access.",
-    keywords: ["wheelchair", "accessible", "step-free", "r1", "hours", "open", "zones"]
-  },
-  {
-    id: "POL-02",
-    section: "VIP & Fairness Policy (Rule R3 / R4)",
-    sourceFile: "restaurant_policies.md",
-    content: "VIP guests waiting >= 10 minutes receive complimentary Saffron Masala Papad & Welcome Drink (Saffron Amuse-Bouche). Fairness Guardrail: VIP reservations never bump wheelchair bookings or regular guests waiting > 20 minutes.",
-    keywords: ["vip", "wait", "complimentary", "papad", "fairness", "r3", "r4", "10 minutes"]
-  },
-  {
-    id: "POL-03",
-    section: "Combinable Table Architecture (Rule R2 / R3 Merge)",
-    sourceFile: "restaurant_policies.md",
-    content: "Adjacent wheelchair-accessible tables T3 and T4 in the Main Hall combine dynamically (up to 8 seats; ideal for wheelchair parties of 5\u20138 if 6-top T10 is occupied). Pairs T5 + T6 (Window, 8 seats) and T8 + T9 (VIP Lounge, 10 seats) also merge for larger groups.",
-    keywords: ["combine", "merge", "large", "group", "party", "t3", "t4", "5", "6", "7", "8", "9", "10"]
-  },
-  {
-    id: "POL-04",
-    section: "Signature Menu & Verified Allergens",
-    sourceFile: "restaurant_policies.md",
-    content: "Signature dishes & allergens: Paneer Butter Masala with Butter Naan (\u20B9420 \u2014 Dairy, Gluten, Cashews), Spiced Chicken with Flaky Malabar Paratha (\u20B9480 \u2014 Gluten, Dairy \xB7 Nut-Free), Wood-Fired Truffle & Burrata Pizza (\u20B9590 \u2014 Gluten, Dairy \xB7 Nut-Free), Warm Saffron & Pistachio Gulab Jamun (\u20B9240 \u2014 Dairy, Pistachio, Gluten), Royal Zafrani Dum Biryani (\u20B9510 \u2014 Dairy \xB7 Nut-Free, GF), Truffle Paneer Tikka (\u20B9540 \u2014 Dairy \xB7 Nut-Free, GF), 24-Hour Smoked Dal Makhani (\u20B9420 \u2014 Dairy \xB7 Nut-Free, GF), Gluten-Free Masala Penne (\u20B9450 \u2014 Dairy \xB7 Nut-Free, GF).",
-    keywords: ["menu", "food", "dish", "nut-free", "nut", "cashew", "pistachio", "gluten", "allergen", "biryani", "paneer", "pizza", "dal"]
-  },
-  {
-    id: "POL-05",
-    section: "Facility Grounding & Hallucination Boundaries",
-    sourceFile: "restaurant_policies.md",
-    content: "Khana-Khazana operates strictly as an indoor fine-dining restaurant with Main Hall, Window View, and VIP Lounge seating. We do NOT have a rooftop pool, swimming pool, spa, hotel rooms, helipad, or casino.",
-    keywords: ["policy", "facility", "zone", "hall", "lounge", "window", "pool"]
-  }
-];
-var RESTAURANT_POLICIES = {
-  brandName: "Khana-Khazana",
-  tagline: "Where Culinary Heritage Meets Autonomous Intelligence.",
-  hours: "Open Daily, 11:30 AM \u2013 11:30 PM (Kitchen closes at 11:00 PM)",
-  zones: ["Main Hall", "Window View", "VIP Lounge"],
-  wheelchairPolicy: RESTAURANT_POLICIES_CHUNKS[0].content,
-  vipPolicy: RESTAURANT_POLICIES_CHUNKS[1].content,
-  combinableTables: RESTAURANT_POLICIES_CHUNKS[2].content,
-  culinaryMenu: RESTAURANT_POLICIES_CHUNKS[3].content,
-  boundaries: RESTAURANT_POLICIES_CHUNKS[4].content
-};
-
 // backend/engine/aiEngine.ts
 var PRIOR_FREE_10 = 0.35;
 var STAGE_LIKELIHOODS = {
@@ -967,6 +255,7 @@ function stepMultiAgentSimulation(tables, queue, waiters, tickCount) {
         table.assignedPartyId = null;
         table.assignedPartyName = null;
         table.assignedPartySize = null;
+        table.activeBookingId = null;
       }
     }
   }
@@ -1030,6 +319,10 @@ function stepMultiAgentSimulation(tables, queue, waiters, tickCount) {
         bestTable.status = "Free";
         bestTable.currentCourse = "None";
         bestTable.elapsedMins = 0;
+        bestTable.assignedPartyId = null;
+        bestTable.assignedPartyName = null;
+        bestTable.assignedPartySize = null;
+        bestTable.activeBookingId = null;
         newEvents.push({
           id: `evt-${nextTick}-${waiter.id}`,
           tick: nextTick,
@@ -1072,6 +365,17 @@ function stepMultiAgentSimulation(tables, queue, waiters, tickCount) {
           message: `${waiter.name} utility ${bestBreakdown.totalUtility} \u2192 Course pacing (${bestTable.currentCourse}) at ${bestTable.id}.`
         });
       }
+    } else {
+      waiter.currentAction = "Standby";
+      waiter.targetTableId = null;
+      waiter.utilityScore = 0;
+      waiter.utilityBreakdown = {
+        urgency: 0,
+        vipBonus: 0,
+        distancePenalty: 0,
+        loadPenalty: 0,
+        totalUtility: 0
+      };
     }
   }
   const hostAgent = nextWaiters.find((w) => w.role === "Host (Goal-Based)");
@@ -1112,32 +416,19 @@ function stepMultiAgentSimulation(tables, queue, waiters, tickCount) {
         message: `Rule R3 dispatched by Host-01 for ${nextParty.name} (${nextParty.waitMins}m wait) \u2192 Complimentary Saffron Amuse-Bouche.`
       });
     }
+  } else if (hostAgent) {
+    hostAgent.currentAction = "Standby";
+    hostAgent.targetTableId = null;
+    hostAgent.utilityScore = 0;
+    hostAgent.utilityBreakdown = {
+      urgency: 0,
+      vipBonus: 0,
+      distancePenalty: 0,
+      loadPenalty: 0,
+      totalUtility: 0
+    };
   }
   return { tables: nextTables, queue: nextQueue, waiters: nextWaiters, newEvents };
-}
-function computeFloorEfficiency(tables) {
-  const occupied = tables.filter(
-    (t) => t.status === "Occupied" || t.status === "Paying"
-  );
-  const free = tables.filter((t) => t.status === "Free");
-  const accessibleAvailable = free.filter((t) => t.isAccessible);
-  const totalSeats = tables.reduce((s, t) => s + t.capacity, 0);
-  const activeSeats = occupied.reduce(
-    (s, t) => s + (t.assignedPartySize ?? t.capacity),
-    0
-  );
-  const utilizedCapacity = occupied.reduce((s, t) => s + t.capacity, 0);
-  const seatEfficiencyPct = utilizedCapacity > 0 ? Number((activeSeats / utilizedCapacity * 100).toFixed(1)) : totalSeats > 0 ? 98.4 : 0;
-  const avgTurnoverRateMins = occupied.length > 0 ? Math.round(
-    occupied.reduce((s, t) => s + Math.max(12, 62 - t.elapsedMins), 0) / occupied.length
-  ) : 28;
-  return {
-    occupiedCount: occupied.length,
-    freeCount: free.length,
-    accessibleAvailableCount: accessibleAvailable.length,
-    seatEfficiencyPct,
-    avgTurnoverRateMins
-  };
 }
 
 // backend/engine/workflows.ts
@@ -1163,11 +454,22 @@ function formatReadableTime(dateTimeStr) {
     hour12: true
   });
 }
+function isSlotOverlapping(slotA, slotB, windowMins = 90) {
+  const timeA = Date.parse(slotA);
+  const timeB = Date.parse(slotB);
+  if (Number.isNaN(timeA) || Number.isNaN(timeB)) {
+    return slotA === slotB;
+  }
+  return Math.abs(timeA - timeB) < windowMins * 6e4;
+}
 function validateBookingWorkflow(req, tables, existingReservations) {
   const t0 = performance.now();
   const slotReservedTableIds = /* @__PURE__ */ new Set();
+  const existingIds = /* @__PURE__ */ new Set();
   for (const r of existingReservations) {
-    if (r.dateTime === req.dateTime) {
+    existingIds.add(r.bookingId);
+    if (r.status === "CANCELLED" || r.status === "COMPLETED") continue;
+    if (isSlotOverlapping(r.dateTime, req.dateTime)) {
       for (const tid of r.assignedTableIds) {
         slotReservedTableIds.add(tid);
       }
@@ -1249,10 +551,7 @@ function validateBookingWorkflow(req, tables, existingReservations) {
       });
     }
     const constraintDetail = req.needsWheelchair ? `all wheelchair-accessible seating in ${req.preferredZone === "ANY" ? "the requested capacity" : req.preferredZone} for ${req.partySize} guests is already committed at ${slotLabel}` : `${req.preferredZone === "ANY" ? "matching seating" : req.preferredZone} capacity for ${req.partySize} guests is fully booked at ${slotLabel}`;
-    const elapsedMs2 = Math.max(
-      240,
-      Math.min(1150, Math.round(performance.now() - t0 + 310))
-    );
+    const elapsedMs2 = Math.max(1, Math.round(performance.now() - t0));
     return {
       fulfillable: false,
       responseTimeMs: elapsedMs2,
@@ -1289,7 +588,10 @@ function validateBookingWorkflow(req, tables, existingReservations) {
   const bayesianConfidencePct = Math.round(minProb * 100);
   const totalCap = assignedTables.reduce((s, t) => s + t.capacity, 0);
   const wastedSeats = Math.max(0, totalCap - req.partySize);
-  const numericCode = String(Math.floor(1e3 + Math.random() * 8999));
+  let numericCode = String(Math.floor(1e3 + Math.random() * 8999));
+  while (existingIds.has(`KK-${numericCode}`)) {
+    numericCode = String(Math.floor(1e3 + Math.random() * 8999));
+  }
   const bookingId = `KK-${numericCode}`;
   const qrPassCode = `KK-QR-${assignedTableIds[0]}-${numericCode}`;
   const now = /* @__PURE__ */ new Date();
@@ -1315,10 +617,7 @@ function validateBookingWorkflow(req, tables, existingReservations) {
     fScore: Number((wastedSeats + (assignedTables.length > 1 ? 0.5 : 0)).toFixed(1)),
     createdAt
   };
-  const elapsedMs = Math.max(
-    260,
-    Math.min(1180, Math.round(performance.now() - t0 + 340))
-  );
+  const elapsedMs = Math.max(1, Math.round(performance.now() - t0));
   return {
     fulfillable: true,
     responseTimeMs: elapsedMs,
@@ -1383,10 +682,7 @@ function validateOrderIngredientsWorkflow(req, menuDishes, ingredients) {
     }
   }
   if (conflicts.length > 0) {
-    const elapsedMs2 = Math.max(
-      180,
-      Math.min(980, Math.round(performance.now() - t0 + 290))
-    );
+    const elapsedMs2 = Math.max(1, Math.round(performance.now() - t0));
     return {
       ok: false,
       responseTimeMs: elapsedMs2,
@@ -1422,7 +718,7 @@ function validateOrderIngredientsWorkflow(req, menuDishes, ingredients) {
     now.getMinutes()
   ).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
   const order = {
-    orderId: `ORD-${Math.floor(400 + Math.random() * 599)}`,
+    orderId: `ORD-${String(Date.now()).slice(-4)}${Math.floor(10 + Math.random() * 89)}`,
     tableId: req.tableId,
     bookingId: req.bookingId,
     items: orderItems,
@@ -1432,10 +728,7 @@ function validateOrderIngredientsWorkflow(req, menuDishes, ingredients) {
     dispatchedAgentId: "W1",
     createdAt
   };
-  const elapsedMs = Math.max(
-    210,
-    Math.min(950, Math.round(performance.now() - t0 + 320))
-  );
+  const elapsedMs = Math.max(1, Math.round(performance.now() - t0));
   return {
     ok: true,
     responseTimeMs: elapsedMs,
@@ -1444,141 +737,589 @@ function validateOrderIngredientsWorkflow(req, menuDishes, ingredients) {
   };
 }
 
+// backend/engine/data.ts
+var INITIAL_TABLES = [
+  {
+    id: "T1",
+    label: "T1 \xB7 Golden Bay Window",
+    capacity: 2,
+    zone: "Window",
+    isAccessible: false,
+    isVipBooth: false,
+    combinableWith: null,
+    status: "Free",
+    currentCourse: "None",
+    elapsedMins: 0,
+    assignedPartyId: null,
+    assignedPartyName: null,
+    assignedPartySize: null,
+    activeBookingId: null,
+    gridCol: 0,
+    gridRow: 0
+  },
+  {
+    id: "T2",
+    label: "T2 \xB7 Brass Hearth Two-Top",
+    capacity: 2,
+    zone: "Main Hall",
+    isAccessible: true,
+    isVipBooth: false,
+    combinableWith: null,
+    status: "Free",
+    currentCourse: "None",
+    elapsedMins: 0,
+    assignedPartyId: null,
+    assignedPartyName: null,
+    assignedPartySize: null,
+    activeBookingId: null,
+    gridCol: 1,
+    gridRow: 0
+  },
+  {
+    id: "T3",
+    label: "T3 \xB7 Lotus West",
+    capacity: 4,
+    zone: "Main Hall",
+    isAccessible: true,
+    isVipBooth: false,
+    combinableWith: "T4",
+    status: "Free",
+    currentCourse: "None",
+    elapsedMins: 0,
+    assignedPartyId: null,
+    assignedPartyName: null,
+    assignedPartySize: null,
+    activeBookingId: null,
+    gridCol: 2,
+    gridRow: 0
+  },
+  {
+    id: "T4",
+    label: "T4 \xB7 Lotus East",
+    capacity: 4,
+    zone: "Main Hall",
+    isAccessible: true,
+    isVipBooth: false,
+    combinableWith: "T3",
+    status: "Free",
+    currentCourse: "None",
+    elapsedMins: 0,
+    assignedPartyId: null,
+    assignedPartyName: null,
+    assignedPartySize: null,
+    activeBookingId: null,
+    gridCol: 3,
+    gridRow: 0
+  },
+  {
+    id: "T5",
+    label: "T5 \xB7 Skyline Window North",
+    capacity: 4,
+    zone: "Window",
+    isAccessible: false,
+    isVipBooth: false,
+    combinableWith: "T6",
+    status: "Free",
+    currentCourse: "None",
+    elapsedMins: 0,
+    assignedPartyId: null,
+    assignedPartyName: null,
+    assignedPartySize: null,
+    activeBookingId: null,
+    gridCol: 0,
+    gridRow: 1
+  },
+  {
+    id: "T6",
+    label: "T6 \xB7 Skyline Window South",
+    capacity: 4,
+    zone: "Window",
+    isAccessible: false,
+    isVipBooth: false,
+    combinableWith: "T5",
+    status: "Free",
+    currentCourse: "None",
+    elapsedMins: 0,
+    assignedPartyId: null,
+    assignedPartyName: null,
+    assignedPartySize: null,
+    activeBookingId: null,
+    gridCol: 1,
+    gridRow: 1
+  },
+  {
+    id: "T7",
+    label: "T7 \xB7 Saffron Corner",
+    capacity: 2,
+    zone: "Window",
+    isAccessible: true,
+    isVipBooth: false,
+    combinableWith: null,
+    status: "Free",
+    currentCourse: "None",
+    elapsedMins: 0,
+    assignedPartyId: null,
+    assignedPartyName: null,
+    assignedPartySize: null,
+    activeBookingId: null,
+    gridCol: 2,
+    gridRow: 1
+  },
+  {
+    id: "T8",
+    label: "T8 \xB7 Imperial Velvet Salon",
+    capacity: 6,
+    zone: "VIP Lounge",
+    isAccessible: false,
+    isVipBooth: true,
+    combinableWith: "T9",
+    status: "Free",
+    currentCourse: "None",
+    elapsedMins: 0,
+    assignedPartyId: null,
+    assignedPartyName: null,
+    assignedPartySize: null,
+    activeBookingId: null,
+    gridCol: 3,
+    gridRow: 1
+  },
+  {
+    id: "T9",
+    label: "T9 \xB7 Sovereign Suite",
+    capacity: 4,
+    zone: "VIP Lounge",
+    isAccessible: true,
+    isVipBooth: true,
+    combinableWith: "T8",
+    status: "Free",
+    currentCourse: "None",
+    elapsedMins: 0,
+    assignedPartyId: null,
+    assignedPartyName: null,
+    assignedPartySize: null,
+    activeBookingId: null,
+    gridCol: 0,
+    gridRow: 2
+  },
+  {
+    id: "T10",
+    label: "T10 \xB7 Heritage Chef Table",
+    capacity: 6,
+    zone: "Main Hall",
+    isAccessible: true,
+    isVipBooth: true,
+    combinableWith: null,
+    status: "Free",
+    currentCourse: "None",
+    elapsedMins: 0,
+    assignedPartyId: null,
+    assignedPartyName: null,
+    assignedPartySize: null,
+    activeBookingId: null,
+    gridCol: 1,
+    gridRow: 2
+  }
+];
+var INITIAL_INGREDIENTS = [
+  {
+    id: "ing-truffle",
+    name: "Black Truffle Shavings",
+    unit: "g",
+    stock: 90,
+    parLevel: 120,
+    perOrderHighlight: "15g per Truffle Paneer Tikka"
+  },
+  {
+    id: "ing-paneer",
+    name: "Fresh Malai Paneer",
+    unit: "g",
+    stock: 2400,
+    parLevel: 3e3,
+    perOrderHighlight: "220g per Paneer dish"
+  },
+  {
+    id: "ing-cashew",
+    name: "Roasted Malabar Cashews",
+    unit: "g",
+    stock: 650,
+    parLevel: 800,
+    perOrderHighlight: "45g per Paneer Butter Masala"
+  },
+  {
+    id: "ing-saffron",
+    name: "Kashmiri Saffron Strands",
+    unit: "mg",
+    stock: 800,
+    parLevel: 1e3,
+    perOrderHighlight: "80mg per Biryani / Dessert"
+  },
+  {
+    id: "ing-lentils",
+    name: "24-Hour Simmered Black Lentils",
+    unit: "g",
+    stock: 3200,
+    parLevel: 4e3,
+    perOrderHighlight: "260g per Dal Makhani"
+  },
+  {
+    id: "ing-gf-penne",
+    name: "Artisan Gluten-Free Rice Penne",
+    unit: "g",
+    stock: 1100,
+    parLevel: 1500,
+    perOrderHighlight: "180g per Penne dish"
+  },
+  {
+    id: "ing-basmati",
+    name: "Aged Royal Basmati Rice",
+    unit: "g",
+    stock: 4e3,
+    parLevel: 5e3,
+    perOrderHighlight: "280g per Zafrani Dum Biryani"
+  },
+  {
+    id: "ing-mozzarella",
+    name: "Buffalo Mozzarella & San Marzano",
+    unit: "g",
+    stock: 1800,
+    parLevel: 2400,
+    perOrderHighlight: "200g per Stone Pizza"
+  },
+  {
+    id: "ing-khoya",
+    name: "Cardamom Khoya Dumplings",
+    unit: "pcs",
+    stock: 48,
+    parLevel: 60,
+    perOrderHighlight: "4 pcs per Gulab Jamun"
+  },
+  {
+    id: "ing-pistachio",
+    name: "Iranian Green Pistachios",
+    unit: "g",
+    stock: 420,
+    parLevel: 500,
+    perOrderHighlight: "15g per Saffron Gulab Jamun"
+  }
+];
+var MENU_DISHES = [
+  {
+    id: "dish-paneer-butter-masala",
+    name: "Paneer Butter Masala with Butter Naan",
+    category: "Royal Mains",
+    description: "Velvety heirloom tomato & cashew makhani gravy with artisan malai paneer, paired with blistered butter naan.",
+    price: 420,
+    prepMins: 14,
+    dietaryTags: ["Veg", "Dairy", "Gluten", "Contains Cashews"],
+    isVeg: true,
+    image: "/images/food_paneer_naan_1794676918929.jpg",
+    recipe: [
+      { ingredientId: "ing-paneer", amount: 220 },
+      { ingredientId: "ing-cashew", amount: 45 }
+    ],
+    substituteDishIds: ["dish-truffle-paneer", "dish-dal-makhani"]
+  },
+  {
+    id: "dish-truffle-paneer",
+    name: "Truffle Paneer Tikka",
+    category: "Signature Starters",
+    description: "Char-grilled artisanal cottage cheese marinated in smoked yogurt, Kashmiri chili, and fresh black truffle shavings.",
+    price: 540,
+    prepMins: 14,
+    dietaryTags: ["Veg", "Nut-Free", "Gluten-Free", "Dairy"],
+    isVeg: true,
+    image: "/images/culinary_heritage_plating_1794675538229.jpg",
+    recipe: [
+      { ingredientId: "ing-truffle", amount: 15 },
+      { ingredientId: "ing-paneer", amount: 220 }
+    ],
+    substituteDishIds: ["dish-dal-makhani", "dish-margherita"]
+  },
+  {
+    id: "dish-dal-makhani",
+    name: "24-Hour Smoked Dal Makhani",
+    category: "Royal Mains",
+    description: "Slow-simmered black urad lentils finished with churned white butter, heirloom tomato puree, and organic cream.",
+    price: 420,
+    prepMins: 12,
+    dietaryTags: ["Veg", "Nut-Free", "Gluten-Free", "Dairy"],
+    isVeg: true,
+    image: "/images/culinary_heritage_plating_1794675538229.jpg",
+    recipe: [{ ingredientId: "ing-lentils", amount: 260 }],
+    substituteDishIds: ["dish-truffle-paneer", "dish-saffron-biryani"]
+  },
+  {
+    id: "dish-saffron-biryani",
+    name: "Royal Zafrani Dum Biryani",
+    category: "Royal Mains",
+    description: "Sealed brass-handi aged basmati rice layered with aromatic spices, caramelized shallots, and Kashmiri saffron.",
+    price: 510,
+    prepMins: 18,
+    dietaryTags: ["Non-Veg", "Nut-Free", "Gluten-Free", "Dairy"],
+    isVeg: false,
+    image: "/images/food_dum_biryani_1794676920335.jpg",
+    recipe: [
+      { ingredientId: "ing-basmati", amount: 280 },
+      { ingredientId: "ing-saffron", amount: 80 }
+    ],
+    substituteDishIds: ["dish-chicken-paratha", "dish-dal-makhani"]
+  },
+  {
+    id: "dish-chicken-paratha",
+    name: "Spiced Chicken with Flaky Malabar Paratha",
+    category: "Royal Mains",
+    description: "Slow-braised spiced chicken masala paired with hand-layered golden butter parathas straight from the tawa.",
+    price: 480,
+    prepMins: 16,
+    dietaryTags: ["Non-Veg", "Nut-Free", "Gluten", "Dairy"],
+    isVeg: false,
+    image: "/images/food_chicken_paratha_1794676918657.jpg",
+    recipe: [{ ingredientId: "ing-basmati", amount: 120 }],
+    substituteDishIds: ["dish-saffron-biryani", "dish-dal-makhani"]
+  },
+  {
+    id: "dish-margherita",
+    name: "Wood-Fired Truffle & Burrata Pizza",
+    category: "Artisan & Global",
+    description: "Stone-baked sourdough crust topped with San Marzano tomatoes, creamy burrata, buffalo mozzarella, and black truffle.",
+    price: 590,
+    prepMins: 15,
+    dietaryTags: ["Veg", "Nut-Free", "Gluten", "Dairy"],
+    isVeg: true,
+    image: "/images/food_artisan_pizza_1794676918698.jpg",
+    recipe: [
+      { ingredientId: "ing-mozzarella", amount: 200 },
+      { ingredientId: "ing-truffle", amount: 10 }
+    ],
+    substituteDishIds: ["dish-gf-penne", "dish-truffle-paneer"]
+  },
+  {
+    id: "dish-gf-penne",
+    name: "Gluten-Free Masala Penne",
+    category: "Artisan & Global",
+    description: "Al dente rice-quinoa penne tossed in velvety roasted tomato-makhani emulsion, basil, and aged parmesan.",
+    price: 450,
+    prepMins: 14,
+    dietaryTags: ["Veg", "Nut-Free", "Gluten-Free", "Dairy"],
+    isVeg: true,
+    image: "/images/food_artisan_pizza_1794676918698.jpg",
+    recipe: [
+      { ingredientId: "ing-gf-penne", amount: 180 },
+      { ingredientId: "ing-mozzarella", amount: 120 }
+    ],
+    substituteDishIds: ["dish-margherita", "dish-dal-makhani"]
+  },
+  {
+    id: "dish-gulab-jamun",
+    name: "Warm Saffron & Pistachio Gulab Jamun",
+    category: "Desserts",
+    description: "Melt-in-the-mouth golden khoya dumplings steeped in warm cardamom-saffron syrup and crushed pistachios.",
+    price: 240,
+    prepMins: 8,
+    dietaryTags: ["Veg", "Dairy", "Contains Pistachio", "Gluten"],
+    isVeg: true,
+    image: "/images/food_gulab_jamun_1794676919306.jpg",
+    recipe: [
+      { ingredientId: "ing-khoya", amount: 4 },
+      { ingredientId: "ing-saffron", amount: 40 },
+      { ingredientId: "ing-pistachio", amount: 15 }
+    ],
+    substituteDishIds: ["dish-dal-makhani", "dish-margherita"]
+  }
+];
+var INITIAL_WAITERS = [
+  {
+    id: "W1",
+    name: "W1 \xB7 Arjun",
+    role: "Waiter (Utility-Based)",
+    zone: "Main Hall",
+    currentAction: "Standby",
+    targetTableId: null,
+    energyPct: 100,
+    utilityScore: 0,
+    utilityBreakdown: {
+      urgency: 0,
+      vipBonus: 0,
+      distancePenalty: 0,
+      loadPenalty: 0,
+      totalUtility: 0
+    },
+    tasksCompleted: 0
+  },
+  {
+    id: "W2",
+    name: "W2 \xB7 Kavya",
+    role: "Waiter (Utility-Based)",
+    zone: "Window",
+    currentAction: "Standby",
+    targetTableId: null,
+    energyPct: 100,
+    utilityScore: 0,
+    utilityBreakdown: {
+      urgency: 0,
+      vipBonus: 0,
+      distancePenalty: 0,
+      loadPenalty: 0,
+      totalUtility: 0
+    },
+    tasksCompleted: 0
+  },
+  {
+    id: "W3",
+    name: "W3 \xB7 Rohan",
+    role: "Waiter (Utility-Based)",
+    zone: "VIP Lounge",
+    currentAction: "Standby",
+    targetTableId: null,
+    energyPct: 100,
+    utilityScore: 0,
+    utilityBreakdown: {
+      urgency: 0,
+      vipBonus: 0,
+      distancePenalty: 0,
+      loadPenalty: 0,
+      totalUtility: 0
+    },
+    tasksCompleted: 0
+  },
+  {
+    id: "Host-01",
+    name: "Host-01 \xB7 Concierge",
+    role: "Host (Goal-Based)",
+    zone: "Main Hall",
+    currentAction: "Standby",
+    targetTableId: null,
+    energyPct: 100,
+    utilityScore: 0,
+    utilityBreakdown: {
+      urgency: 0,
+      vipBonus: 0,
+      distancePenalty: 0,
+      loadPenalty: 0,
+      totalUtility: 0
+    },
+    tasksCompleted: 0
+  }
+];
+var SIGNATURE_MENU_KNOWLEDGE_BASE = [
+  {
+    name: "Paneer Butter Masala with Butter Naan",
+    price: 420,
+    allergens: ["Dairy", "Gluten", "Cashews"],
+    nutFree: false,
+    glutenFree: false
+  },
+  {
+    name: "Spiced Chicken with Flaky Malabar Paratha",
+    price: 480,
+    allergens: ["Gluten", "Dairy"],
+    nutFree: true,
+    glutenFree: false
+  },
+  {
+    name: "Wood-Fired Truffle & Burrata Pizza",
+    price: 590,
+    allergens: ["Gluten", "Dairy"],
+    nutFree: true,
+    glutenFree: false
+  },
+  {
+    name: "Warm Saffron & Pistachio Gulab Jamun",
+    price: 240,
+    allergens: ["Dairy", "Pistachio", "Gluten"],
+    nutFree: false,
+    glutenFree: false
+  },
+  {
+    name: "Royal Zafrani Dum Biryani",
+    price: 510,
+    allergens: ["Dairy"],
+    nutFree: true,
+    glutenFree: true
+  },
+  {
+    name: "Truffle Paneer Tikka",
+    price: 540,
+    allergens: ["Dairy"],
+    nutFree: true,
+    glutenFree: true
+  },
+  {
+    name: "24-Hour Smoked Dal Makhani",
+    price: 420,
+    allergens: ["Dairy"],
+    nutFree: true,
+    glutenFree: true
+  },
+  {
+    name: "Gluten-Free Masala Penne",
+    price: 450,
+    allergens: ["Dairy"],
+    nutFree: true,
+    glutenFree: true
+  }
+];
+var RESTAURANT_POLICIES_CHUNKS = [
+  {
+    id: "POL-01",
+    section: "Operating Hours, Zones & Wheelchair Accessibility (Rule R1)",
+    sourceFile: "restaurant_policies.md",
+    content: "Open daily 11:30 AM \u2013 11:30 PM (kitchen closes 11:00 PM) across Main Hall, Window View, and VIP Lounge. Tables T2 (Main Hall, 2 seats), T3 & T4 (Main Hall, 4 seats each), T7 (Window, 2 seats), T9 (VIP Lounge, 4 seats), and T10 (Main Hall, 6 seats) provide step-free wheelchair access.",
+    keywords: ["wheelchair", "accessible", "step-free", "r1", "hours", "open", "zones"]
+  },
+  {
+    id: "POL-02",
+    section: "VIP & Fairness Policy (Rule R3 / R4)",
+    sourceFile: "restaurant_policies.md",
+    content: "VIP guests waiting >= 10 minutes receive complimentary Saffron Masala Papad & Welcome Drink (Saffron Amuse-Bouche). Fairness Guardrail: VIP reservations never bump wheelchair bookings or regular guests waiting > 20 minutes.",
+    keywords: ["vip", "wait", "complimentary", "papad", "fairness", "r3", "r4", "10 minutes"]
+  },
+  {
+    id: "POL-03",
+    section: "Combinable Table Architecture (Rule R2 / R3 Merge)",
+    sourceFile: "restaurant_policies.md",
+    content: "Adjacent wheelchair-accessible tables T3 and T4 in the Main Hall combine dynamically (up to 8 seats; ideal for wheelchair parties of 5\u20138 if 6-top T10 is occupied). Pairs T5 + T6 (Window, 8 seats) and T8 + T9 (VIP Lounge, 10 seats) also merge for larger groups.",
+    keywords: ["combine", "merge", "large", "group", "party", "t3", "t4", "5", "6", "7", "8", "9", "10"]
+  },
+  {
+    id: "POL-04",
+    section: "Signature Menu & Verified Allergens",
+    sourceFile: "restaurant_policies.md",
+    content: "Signature dishes & allergens: Paneer Butter Masala with Butter Naan (\u20B9420 \u2014 Dairy, Gluten, Cashews), Spiced Chicken with Flaky Malabar Paratha (\u20B9480 \u2014 Gluten, Dairy \xB7 Nut-Free), Wood-Fired Truffle & Burrata Pizza (\u20B9590 \u2014 Gluten, Dairy \xB7 Nut-Free), Warm Saffron & Pistachio Gulab Jamun (\u20B9240 \u2014 Dairy, Pistachio, Gluten), Royal Zafrani Dum Biryani (\u20B9510 \u2014 Dairy \xB7 Nut-Free, GF), Truffle Paneer Tikka (\u20B9540 \u2014 Dairy \xB7 Nut-Free, GF), 24-Hour Smoked Dal Makhani (\u20B9420 \u2014 Dairy \xB7 Nut-Free, GF), Gluten-Free Masala Penne (\u20B9450 \u2014 Dairy \xB7 Nut-Free, GF).",
+    keywords: ["menu", "food", "dish", "nut-free", "nut", "cashew", "pistachio", "gluten", "allergen", "biryani", "paneer", "pizza", "dal"]
+  },
+  {
+    id: "POL-05",
+    section: "Facility Grounding & Hallucination Boundaries",
+    sourceFile: "restaurant_policies.md",
+    content: "Khana-Khazana operates strictly as an indoor fine-dining restaurant with Main Hall, Window View, and VIP Lounge seating. We do NOT have a rooftop pool, swimming pool, spa, hotel rooms, helipad, or casino.",
+    keywords: ["policy", "facility", "zone", "hall", "lounge", "window", "pool"]
+  }
+];
+var RESTAURANT_POLICIES = {
+  brandName: "Khana-Khazana",
+  tagline: "Where Culinary Heritage Meets Autonomous Intelligence.",
+  hours: "Open Daily, 11:30 AM \u2013 11:30 PM (Kitchen closes at 11:00 PM)",
+  zones: ["Main Hall", "Window View", "VIP Lounge"],
+  wheelchairPolicy: RESTAURANT_POLICIES_CHUNKS[0].content,
+  vipPolicy: RESTAURANT_POLICIES_CHUNKS[1].content,
+  combinableTables: RESTAURANT_POLICIES_CHUNKS[2].content,
+  culinaryMenu: RESTAURANT_POLICIES_CHUNKS[3].content,
+  boundaries: RESTAURANT_POLICIES_CHUNKS[4].content
+};
+
 // backend/engine/ragGrounding.ts
 var HALLUCINATION_REFUSAL_TEXT = "I cannot verify that information from our current restaurant knowledge base or live floor data.";
-var OUT_OF_SCOPE_PATTERNS = [
-  /swimming\s*pool/i,
-  /rooftop\s*pool/i,
-  /\bpool\b/i,
-  /\bspa\b/i,
-  /helipad/i,
-  /helicopter/i,
-  /hotel\s*room/i,
-  /casino/i,
-  /bowling/i,
-  /pet\s*groom/i,
-  /cryptocurrency/i,
-  /\bbitcoin\b/i,
-  /stock\s*price/i,
-  /weather/i,
-  /\bflight\b/i,
-  /\bmovie\b/i,
-  /president/i,
-  /prime\s*minister/i,
-  /capital\s+of/i
-];
-var GREETING_IDENTITY_PATTERNS = [
-  /^\s*(hi|hello|hey|namaste|good\s*(morning|afternoon|evening))\b/i,
-  /\bwho\s+(are\s+you|you\s+are|is\s+this)\b/i,
-  /\bwhat\s+(are\s+you|can\s+you\s+do|do\s+you\s+do)\b/i,
-  /\btell\s+me\s+about\s+(yourself|khana)\b/i,
-  /\bhelp\b/i,
-  /khana[-\s]?khazana/i
-];
-function isExplicitOutOfScopeQuery(query) {
-  return OUT_OF_SCOPE_PATTERNS.some((rx) => rx.test(query.toLowerCase()));
-}
-var IN_DOMAIN_KEYWORDS = [
-  "table",
-  "t1",
-  "t2",
-  "t3",
-  "t4",
-  "t5",
-  "t6",
-  "t7",
-  "t8",
-  "t9",
-  "t10",
-  "seat",
-  "wheelchair",
-  "access",
-  "step-free",
-  "vip",
-  "complimentary",
-  "starter",
-  "papad",
-  "r1",
-  "r2",
-  "r3",
-  "r4",
-  "combine",
-  "merge",
-  "wait",
-  "queue",
-  "bayes",
-  "prob",
-  "free",
-  "paying",
-  "dirty",
-  "window",
-  "main hall",
-  "lounge",
-  "zone",
-  "waiter",
-  "agent",
-  "host",
-  "arjun",
-  "kavya",
-  "rohan",
-  "menu",
-  "dish",
-  "food",
-  "eat",
-  "recommend",
-  "suggest",
-  "popular",
-  "signature",
-  "best",
-  "price",
-  "cost",
-  "veg",
-  "vegetarian",
-  "non-veg",
-  "spicy",
-  "dessert",
-  "sweet",
-  "butter naan",
-  "paneer",
-  "truffle",
-  "dal",
-  "makhani",
-  "biryani",
-  "zafrani",
-  "saffron",
-  "penne",
-  "pizza",
-  "burrata",
-  "chicken",
-  "paratha",
-  "gulab",
-  "jain",
-  "vegan",
-  "gluten",
-  "nut",
-  "cashew",
-  "pistachio",
-  "dairy",
-  "allerg",
-  "hour",
-  "open",
-  "close",
-  "policy",
-  "policies",
-  "floor",
-  "party",
-  "group",
-  "reservation",
-  "booking",
-  "book",
-  "qr",
-  "stock",
-  "inventory",
-  "ingredient",
-  "fairness"
-];
 function buildGroqKnowledgeContext(params) {
-  const { portal, tables, queue, waiters, ingredients, reservations } = params;
+  const {
+    portal,
+    tables,
+    queue,
+    waiters,
+    ingredients,
+    reservations,
+    menuDishes = MENU_DISHES
+  } = params;
   const staticKnowledge = {
     brand: RESTAURANT_POLICIES.brandName,
     hours: RESTAURANT_POLICIES.hours,
@@ -1590,7 +1331,7 @@ function buildGroqKnowledgeContext(params) {
       rule: p.content
     })),
     signatureMenuAndAllergens: SIGNATURE_MENU_KNOWLEDGE_BASE,
-    qrMenuDishes: MENU_DISHES.map((d) => ({
+    qrMenuDishes: menuDishes.map((d) => ({
       id: d.id,
       name: d.name,
       priceInr: d.price,
@@ -1635,155 +1376,6 @@ ${JSON.stringify(staticKnowledge)}
 
 LIVE_FLOOR_AND_KITCHEN_STATE [live_floor_db]:
 ${JSON.stringify(liveFloorDb)}`;
-}
-function evaluateGroundedMaitreD(query, tables, queue, waiters, ingredients = [], reservations = []) {
-  const q = query.toLowerCase().trim();
-  if (isExplicitOutOfScopeQuery(q)) {
-    return {
-      reply: HALLUCINATION_REFUSAL_TEXT,
-      sources: ["[restaurant_policies.md]", "[live_floor_db]"],
-      refusalTriggered: true
-    };
-  }
-  const freeTables = tables.filter((t) => t.status === "Free");
-  const accessibleFree = freeTables.filter((t) => t.isAccessible);
-  const payingTables = tables.filter((t) => t.status === "Paying");
-  const waiting = queue.filter((p) => p.status === "WAITING");
-  const eff = computeFloorEfficiency(tables);
-  const isGreetingOrIdentity = GREETING_IDENTITY_PATTERNS.some((rx) => rx.test(q));
-  const hasDomainAnchor = IN_DOMAIN_KEYWORDS.some((kw) => q.includes(kw));
-  if (isGreetingOrIdentity && !hasDomainAnchor) {
-    return {
-      reply: `Namaste! I am the Khana-Khazana Grounded AI Concierge (${RESTAURANT_POLICIES.hours}, zones: Window, Main Hall & VIP Lounge). Currently ${freeTables.length}/${tables.length} tables are Free with ${waiting.length} queued parties\u2014ask me about wheelchair seating (T3 + T4), nut-free or gluten-free dishes, live kitchen ingredient stock, or VIP policies.`,
-      sources: ["[restaurant_policies.md]", "[live_floor_db]"],
-      refusalTriggered: false
-    };
-  }
-  if (!hasDomainAnchor) {
-    return {
-      reply: HALLUCINATION_REFUSAL_TEXT,
-      sources: ["[restaurant_policies.md]", "[live_floor_db]"],
-      refusalTriggered: true
-    };
-  }
-  if (q.includes("stock") || q.includes("inventory") || q.includes("ingredient") || q.includes("truffle") || q.includes("saffron") || q.includes("penne")) {
-    if (ingredients.length > 0) {
-      const truffleIng = ingredients.find((i) => i.id === "ing-truffle");
-      const paneerIng = ingredients.find((i) => i.id === "ing-paneer");
-      if (q.includes("truffle paneer tikka") && truffleIng && paneerIng) {
-        const canMake = truffleIng.stock >= 15 && paneerIng.stock >= 220;
-        return {
-          reply: canMake ? `Yes \u2014 Truffle Paneer Tikka (\u20B9540) is IN STOCK right now: live NeonDB pantry holds ${truffleIng.stock}${truffleIng.unit} Black Truffle Shavings (15g/order) and ${paneerIng.stock}${paneerIng.unit} Fresh Malai Paneer (220g/order).` : `Truffle Paneer Tikka is currently OUT OF STOCK (Black Truffle Shavings: ${truffleIng.stock}${truffleIng.unit}, Fresh Malai Paneer: ${paneerIng.stock}${paneerIng.unit}). Chef substitutes: 24-Hour Smoked Dal Makhani or Wood-Fired Burrata Margherita.`,
-          sources: ["[live_floor_db]", "[restaurant_policies.md]"],
-          refusalTriggered: false
-        };
-      }
-      const lowOrZero = ingredients.filter((i) => i.stock <= i.parLevel * 0.2);
-      const summary = ingredients.map((i) => `${i.name}: ${i.stock}${i.unit}`).join(", ");
-      return {
-        reply: lowOrZero.length > 0 ? `Kitchen Inventory Alert \u2014 low/out items: ${lowOrZero.map((i) => `${i.name} (${i.stock}${i.unit})`).join(", ")}. Live stock snapshot: ${summary}.` : `All tracked kitchen ingredients are in stock: ${summary}.`,
-        sources: ["[live_floor_db]", "[restaurant_policies.md]"],
-        refusalTriggered: false
-      };
-    }
-  }
-  if (q.includes("nut-free") || q.includes("nut free") || q.includes("nuts") || q.includes("cashew") || q.includes("pistachio") || q.includes("allerg")) {
-    const nutFreeList = SIGNATURE_MENU_KNOWLEDGE_BASE.filter((d) => d.nutFree).map((d) => `${d.name} (\u20B9${d.price} \u2014 ${d.allergens.join(", ")})`).join("; ");
-    const containsNuts = SIGNATURE_MENU_KNOWLEDGE_BASE.filter((d) => !d.nutFree).map((d) => `${d.name} (${d.allergens.join(", ")})`).join(" and ");
-    return {
-      reply: `Verified nut-free dishes: ${nutFreeList}. Avoid dishes containing tree nuts: ${containsNuts}.`,
-      sources: ["[restaurant_policies.md]", "[live_floor_db]"],
-      refusalTriggered: false
-    };
-  }
-  if (q.includes("wheelchair") || q.includes("access") || q.includes("r1")) {
-    const sizeMatch = /\b([5-9]|10)\b/.exec(q);
-    if (sizeMatch) {
-      const requestedSize = Number(sizeMatch[1]);
-      const probeParty = {
-        id: "PROBE-WC",
-        name: "Accessible Group Inquiry",
-        size: requestedSize,
-        isVip: false,
-        needsWheelchair: true,
-        preferredZone: "Main Hall",
-        waitMins: 0,
-        status: "WAITING"
-      };
-      const probe = runAStarAllocation(tables, probeParty, waiting.length);
-      const t3 = tables.find((t) => t.id === "T3");
-      const t4 = tables.find((t) => t.id === "T4");
-      const t10 = tables.find((t) => t.id === "T10");
-      return {
-        reply: `Yes \u2014 a wheelchair party of ${requestedSize} can be seated together in the Main Hall. Step-free tables T3 (${t3?.status ?? "Free"}) + T4 (${t4?.status ?? "Free"}) combine into an ${(t3?.capacity ?? 4) + (t4?.capacity ?? 4)}-seat accessible setup (or 6-top T10 when Free, currently ${t10?.status ?? "Paying"}). Live A* routing ${probe.success ? `locks ${probe.assignedTableIds.join(" + ")} (${probe.totalCapacity} seats, f=${probe.fScore}).` : "queues for next accessible turn."}`,
-        sources: ["[restaurant_policies.md]", "[live_floor_db]"],
-        refusalTriggered: false
-      };
-    }
-    const allAccessible = tables.filter((t) => t.isAccessible);
-    const readyList = accessibleFree.length > 0 ? accessibleFree.map((t) => `${t.id} (${t.capacity} seats, ${t.zone})`).join(", ") : "none immediately Free";
-    const soonest = allAccessible.filter((t) => t.status !== "Free").map(
-      (t) => `${t.id} (${t.status}, P(Free\u2081\u2080)=${Math.round(
-        computeBayesianTurnoverProb(t.status, t.currentCourse, t.elapsedMins) * 100
-      )}%)`
-    ).join("; ");
-    return {
-      reply: `Rule R1 enforces step-free access across tables ${allAccessible.map((t) => t.id).join(", ")} (with T3 + T4 combinable into an 8-seat accessible layout). Currently ${accessibleFree.length} accessible table${accessibleFree.length === 1 ? " is" : "s are"} Free: ${readyList}. Other accessible tables in cadence: ${soonest || "all currently open"}.`,
-      sources: ["[live_floor_db]", "[restaurant_policies.md]"],
-      refusalTriggered: false
-    };
-  }
-  if (q.includes("vip") || q.includes("complimentary") || q.includes("starter") || q.includes("papad") || q.includes("fairness") || q.includes("r3") || q.includes("r4")) {
-    const vipTables = tables.filter((t) => t.isVipBooth);
-    return {
-      reply: `${RESTAURANT_POLICIES_CHUNKS[1].content} Live VIP Lounge & celebration booths: ${vipTables.map((t) => `${t.id} (${t.capacity} seats \xB7 ${t.status})`).join(", ")}.`,
-      sources: ["[restaurant_policies.md]", "[live_floor_db]"],
-      refusalTriggered: false
-    };
-  }
-  if (q.includes("menu") || q.includes("dish") || q.includes("food") || q.includes("eat") || q.includes("recommend") || q.includes("suggest") || q.includes("popular") || q.includes("signature") || q.includes("best") || q.includes("price") || q.includes("cost") || q.includes("veg") || q.includes("non-veg") || q.includes("spicy") || q.includes("dessert") || q.includes("sweet") || q.includes("paneer") || q.includes("pizza") || q.includes("biryani") || q.includes("gulab") || q.includes("dal") || q.includes("chicken") || q.includes("paratha") || q.includes("jain") || q.includes("vegan") || q.includes("gluten") || q.includes("hour") || q.includes("open")) {
-    const gfDishes = SIGNATURE_MENU_KNOWLEDGE_BASE.filter((d) => d.glutenFree).map((d) => `${d.name} (\u20B9${d.price})`).join(", ");
-    const signaturePrices = MENU_DISHES.slice(0, 4).map((d) => `${d.name} (\u20B9${d.price})`).join(", ");
-    return {
-      reply: `Hours: ${RESTAURANT_POLICIES.hours}. Signature highlights include ${signaturePrices}. ${RESTAURANT_POLICIES_CHUNKS[3].content} Verified Gluten-Free selections: ${gfDishes}.`,
-      sources: ["[restaurant_policies.md]", "[live_floor_db]"],
-      refusalTriggered: false
-    };
-  }
-  if (q.includes("reservation") || q.includes("booking") || q.includes("wait") || q.includes("ready") || q.includes("combine") || q.includes("merge") || q.includes("large") || q.includes("party") || q.includes("group") || q.includes("bayes") || /\b[5-9]|10\b/.test(q)) {
-    const size = q.includes("10") ? 10 : q.includes("8") ? 8 : q.includes("7") ? 7 : q.includes("6") ? 6 : 5;
-    const probeParty = {
-      id: "PROBE",
-      name: "Guest Inquiry",
-      size,
-      isVip: q.includes("vip"),
-      needsWheelchair: q.includes("wheelchair"),
-      preferredZone: "ANY",
-      waitMins: 0,
-      status: "WAITING"
-    };
-    const probe = runAStarAllocation(tables, probeParty, waiting.length);
-    const payingDetails = payingTables.length > 0 ? payingTables.map(
-      (t) => `${t.id} (${t.zone}, P(Free\u2081\u2080)=${Math.round(
-        computeBayesianTurnoverProb(
-          t.status,
-          t.currentCourse,
-          t.elapsedMins
-        ) * 100
-      )}%)`
-    ).join(", ") : "none currently in Paying stage";
-    return {
-      reply: `Floor snapshot shows ${freeTables.length} Free tables (${freeTables.map((t) => `${t.id} \xB7 ${t.capacity}s`).join(", ") || "none"}), ${reservations.length} confirmed NeonDB reservation(s), and Paying tables ${payingDetails}. For a party of ${size}, A* recommends ${probe.success ? `${probe.assignedTableIds.join(" + ")} (f=${probe.fScore}, ${probe.wastedSeats} wasted seats)` : "holding in queue until next Bayesian release"}.`,
-      sources: ["[live_floor_db]", "[restaurant_policies.md]"],
-      refusalTriggered: false
-    };
-  }
-  const activeAgents = waiters.map((w) => `${w.id} (${w.currentAction} @ ${w.targetTableId ?? "Queue"})`).join(", ");
-  return {
-    reply: `Floor Command reports ${freeTables.length}/${tables.length} tables Free (${freeTables.map((t) => `${t.id} ${t.capacity}s`).join(", ") || "none"}), ${eff.seatEfficiencyPct}% seat utilization, and ${waiting.length} waiting parties. Active agents: ${activeAgents}.`,
-    sources: ["[live_floor_db]", "[restaurant_policies.md]"],
-    refusalTriggered: false
-  };
 }
 
 // backend/db/neon.ts
@@ -1836,7 +1428,7 @@ CREATE TABLE IF NOT EXISTS reservations (
   needs_wheelchair BOOLEAN NOT NULL DEFAULT FALSE,
   is_vip BOOLEAN NOT NULL DEFAULT FALSE,
   special_requests TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL CHECK (status IN ('CONFIRMED', 'CHECKED_IN', 'SEATED')),
+  status TEXT NOT NULL CHECK (status IN ('CONFIRMED', 'CHECKED_IN', 'SEATED', 'COMPLETED', 'CANCELLED')),
   assigned_table_ids JSONB NOT NULL,
   qr_pass_code TEXT NOT NULL,
   triggered_rules JSONB NOT NULL,
@@ -1879,7 +1471,7 @@ CREATE TABLE IF NOT EXISTS kitchen_orders (
   items JSONB NOT NULL,
   total_amount INTEGER NOT NULL CHECK (total_amount >= 0),
   prep_time_mins INTEGER NOT NULL CHECK (prep_time_mins > 0),
-  status TEXT NOT NULL CHECK (status IN ('Order Received', 'Preparing', 'Waiter En Route')),
+  status TEXT NOT NULL CHECK (status IN ('Order Received', 'Preparing', 'Waiter En Route', 'Served')),
   dispatched_agent_id TEXT NOT NULL,
   created_at TEXT NOT NULL,
   created_ts TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -1930,595 +1522,22 @@ CREATE TABLE IF NOT EXISTS xai_audit_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_xai_audit_created ON xai_audit_logs (created_ts DESC);
+
+ALTER TABLE reservations DROP CONSTRAINT IF EXISTS reservations_status_check;
+ALTER TABLE reservations ADD CONSTRAINT reservations_status_check CHECK (status IN ('CONFIRMED', 'CHECKED_IN', 'SEATED', 'COMPLETED', 'CANCELLED'));
+
+ALTER TABLE kitchen_orders DROP CONSTRAINT IF EXISTS kitchen_orders_status_check;
+ALTER TABLE kitchen_orders ADD CONSTRAINT kitchen_orders_status_check CHECK (status IN ('Order Received', 'Preparing', 'Waiter En Route', 'Served'));
 `;
 
-// backend/db/demoSeed.ts
-var DEMO_INGREDIENTS = [
-  {
-    id: "ing-cashew",
-    name: "Roasted Goan Cashew Paste",
-    unit: "g",
-    stock: 650,
-    parLevel: 800,
-    perOrderHighlight: "40g per Paneer Butter Masala (Tree Nut)"
-  },
-  {
-    id: "ing-pistachio",
-    name: "Iranian Pistachio Slivers",
-    unit: "g",
-    stock: 420,
-    parLevel: 500,
-    perOrderHighlight: "15g per Saffron Gulab Jamun (Tree Nut)"
-  }
-];
-var DEMO_QUEUE = [
-  {
-    id: "P-105",
-    name: "Ananya Kapoor",
-    size: 2,
-    isVip: false,
-    needsWheelchair: false,
-    preferredZone: "Window",
-    dietaryNotes: "Strict nut allergy \xB7 Royal Zafrani Dum Biryani",
-    waitMins: 5,
-    status: "WAITING",
-    bookingId: "KK-9102"
-  },
-  {
-    id: "P-106",
-    name: "Devansh & Riya Malhotra",
-    size: 6,
-    isVip: true,
-    needsWheelchair: false,
-    preferredZone: "VIP Lounge",
-    dietaryNotes: "Anniversary saffron tasting & welcome drink",
-    waitMins: 14,
-    status: "WAITING",
-    bookingId: "KK-9118"
-  },
-  {
-    id: "P-107",
-    name: "Rao Couple",
-    size: 2,
-    isVip: false,
-    needsWheelchair: false,
-    preferredZone: "Window",
-    dietaryNotes: "24-Hour Smoked Dal Makhani + Biryani",
-    waitMins: 0,
-    status: "SEATED",
-    bookingId: "KK-7401"
-  },
-  {
-    id: "P-108",
-    name: "Vikramaditya Party",
-    size: 4,
-    isVip: true,
-    needsWheelchair: true,
-    preferredZone: "VIP Lounge",
-    dietaryNotes: "Step-free VIP suite",
-    waitMins: 0,
-    status: "SEATED",
-    bookingId: "KK-7904"
-  }
-];
-var DEMO_RESERVATIONS = [
-  {
-    bookingId: "KK-7401",
-    guestName: "Rao Couple",
-    email: "rao.couple@example.com",
-    phone: "+91 98101 22310",
-    dateTime: "2026-11-15T19:00",
-    partySize: 2,
-    preferredZone: "Window",
-    needsWheelchair: false,
-    isVip: false,
-    specialRequests: "Corner bay window view",
-    status: "SEATED",
-    assignedTableIds: ["T1"],
-    qrPassCode: "KK-QR-T1-7401",
-    triggeredRules: ["Zone Match: Window", "Minimal Waste Heuristic (0 wasted)"],
-    bayesianConfidencePct: 100,
-    fScore: 0,
-    createdAt: "18:55:10"
-  },
-  {
-    bookingId: "KK-7512",
-    guestName: "Mehta Quartet",
-    email: "mehta.quartet@example.com",
-    phone: "+91 98220 44109",
-    dateTime: "2026-11-15T18:45",
-    partySize: 4,
-    preferredZone: "Window",
-    needsWheelchair: false,
-    isVip: false,
-    specialRequests: "Gluten-free pizza option",
-    status: "SEATED",
-    assignedTableIds: ["T5"],
-    qrPassCode: "KK-QR-T5-7512",
-    triggeredRules: ["Zone Match: Window", "Bayesian Billing Cadence Tracked"],
-    bayesianConfidencePct: 88,
-    fScore: 0.5,
-    createdAt: "18:40:02"
-  },
-  {
-    bookingId: "KK-7618",
-    guestName: "Sen Family",
-    email: "sen.family@example.com",
-    phone: "+91 98311 66780",
-    dateTime: "2026-11-15T19:10",
-    partySize: 3,
-    preferredZone: "Window",
-    needsWheelchair: false,
-    isVip: false,
-    specialRequests: "Warm Saffron Gulab Jamun dessert course",
-    status: "SEATED",
-    assignedTableIds: ["T6"],
-    qrPassCode: "KK-QR-T6-7618",
-    triggeredRules: ["Zone Match: Window", "Dessert Cadence P(Free10)=62%"],
-    bayesianConfidencePct: 62,
-    fScore: 1,
-    createdAt: "19:05:19"
-  },
-  {
-    bookingId: "KK-7904",
-    guestName: "Vikramaditya Party",
-    email: "vikram.vip@example.com",
-    phone: "+91 98111 90011",
-    dateTime: "2026-11-15T19:30",
-    partySize: 4,
-    preferredZone: "VIP Lounge",
-    needsWheelchair: true,
-    isVip: true,
-    specialRequests: "Step-free VIP suite & saffron pairing",
-    status: "SEATED",
-    assignedTableIds: ["T9"],
-    qrPassCode: "KK-QR-T9-7904",
-    triggeredRules: ["R1: Accessible Filter", "Zone Match: VIP Lounge"],
-    bayesianConfidencePct: 100,
-    fScore: 0.5,
-    createdAt: "19:22:40"
-  },
-  {
-    bookingId: "KK-8010",
-    guestName: "Chatterjee Guests",
-    email: "chatterjee.h@example.com",
-    phone: "+91 98300 77881",
-    dateTime: "2026-11-15T18:50",
-    partySize: 5,
-    preferredZone: "Main Hall",
-    needsWheelchair: true,
-    isVip: true,
-    specialRequests: "Wheelchair party of 5 \xB7 Main Hall Heritage table",
-    status: "SEATED",
-    assignedTableIds: ["T10"],
-    qrPassCode: "KK-QR-T10-8010",
-    triggeredRules: ["R1: Accessible Filter", "Single 6-Top Preferred Over Merge"],
-    bayesianConfidencePct: 91,
-    fScore: 1,
-    createdAt: "18:47:11"
-  },
-  {
-    bookingId: "KK-9102",
-    guestName: "Ananya Kapoor",
-    email: "ananya.kapoor@example.com",
-    phone: "+91 98450 11223",
-    dateTime: "2026-11-15T21:30",
-    partySize: 2,
-    preferredZone: "Window",
-    needsWheelchair: false,
-    isVip: false,
-    specialRequests: "Nut-free menu verified via Concierge",
-    status: "CONFIRMED",
-    assignedTableIds: ["T1"],
-    qrPassCode: "KK-QR-T1-9102",
-    triggeredRules: ["Zone Match: Window", "Allergen Audit Logged"],
-    bayesianConfidencePct: 96,
-    fScore: 0,
-    createdAt: "20:04:15"
-  },
-  {
-    bookingId: "KK-9118",
-    guestName: "Devansh & Riya Malhotra",
-    email: "malhotra.vip@example.com",
-    phone: "+91 98180 55432",
-    dateTime: "2026-11-15T21:45",
-    partySize: 6,
-    preferredZone: "VIP Lounge",
-    needsWheelchair: false,
-    isVip: true,
-    specialRequests: "Wait > 10m Saffron Masala Papad & Welcome Drink",
-    status: "CONFIRMED",
-    assignedTableIds: ["T8"],
-    qrPassCode: "KK-QR-T8-9118",
-    triggeredRules: ["Zone Match: VIP Lounge", "R3: VIP Wait > 10m Amuse-Bouche"],
-    bayesianConfidencePct: 100,
-    fScore: 0.5,
-    createdAt: "20:11:30"
-  },
-  {
-    bookingId: "KK-9150",
-    guestName: "Iyer Accessible Group",
-    email: "iyer.accessibility@example.com",
-    phone: "+91 98401 33445",
-    dateTime: "2026-11-16T13:00",
-    partySize: 6,
-    preferredZone: "Main Hall",
-    needsWheelchair: true,
-    isVip: false,
-    specialRequests: "Step-free Main Hall lunch for 6 guests",
-    status: "CONFIRMED",
-    assignedTableIds: ["T10"],
-    qrPassCode: "KK-QR-T10-9150",
-    triggeredRules: ["R1: Accessible Filter", "Zone Match: Main Hall"],
-    bayesianConfidencePct: 100,
-    fScore: 0,
-    createdAt: "20:15:08"
-  }
-];
-var DEMO_ORDERS = [
-  {
-    orderId: "ORD-302",
-    tableId: "T5",
-    bookingId: "KK-7512",
-    items: [
-      {
-        dishId: "dish-truffle-paneer",
-        name: "Truffle Paneer Tikka",
-        quantity: 1,
-        price: 540
-      },
-      {
-        dishId: "dish-margherita",
-        name: "Wood-Fired Burrata Margherita",
-        quantity: 1,
-        price: 430
-      }
-    ],
-    totalAmount: 970,
-    prepTimeMins: 14,
-    status: "Waiter En Route",
-    dispatchedAgentId: "W2",
-    createdAt: "19:48:20"
-  },
-  {
-    orderId: "ORD-303",
-    tableId: "T6",
-    bookingId: "KK-7618",
-    items: [
-      {
-        dishId: "dish-gf-penne",
-        name: "Gluten-Free Masala Penne",
-        quantity: 1,
-        price: 450
-      },
-      {
-        dishId: "dish-gulab-jamun",
-        name: "Warm Saffron & Pistachio Gulab Jamun",
-        quantity: 2,
-        price: 220
-      }
-    ],
-    totalAmount: 890,
-    prepTimeMins: 14,
-    status: "Waiter En Route",
-    dispatchedAgentId: "W2",
-    createdAt: "20:02:10"
-  },
-  {
-    orderId: "ORD-304",
-    tableId: "T9",
-    bookingId: "KK-7904",
-    items: [
-      {
-        dishId: "dish-saffron-biryani",
-        name: "Royal Saffron Dum Biryani",
-        quantity: 2,
-        price: 490
-      },
-      {
-        dishId: "dish-truffle-paneer",
-        name: "Truffle Paneer Tikka",
-        quantity: 1,
-        price: 540
-      }
-    ],
-    totalAmount: 1520,
-    prepTimeMins: 18,
-    status: "Preparing",
-    dispatchedAgentId: "W3",
-    createdAt: "20:09:44"
-  },
-  {
-    orderId: "ORD-305",
-    tableId: "T10",
-    bookingId: "KK-8010",
-    items: [
-      {
-        dishId: "dish-dal-makhani",
-        name: "24-Hour Smoked Dal Makhani",
-        quantity: 2,
-        price: 420
-      },
-      {
-        dishId: "dish-chicken-paratha",
-        name: "Homestyle Chicken & Flaky Paratha",
-        quantity: 2,
-        price: 470
-      }
-    ],
-    totalAmount: 1780,
-    prepTimeMins: 16,
-    status: "Waiter En Route",
-    dispatchedAgentId: "W1",
-    createdAt: "19:35:00"
-  },
-  {
-    orderId: "ORD-306",
-    tableId: "T9",
-    bookingId: "KK-7904",
-    items: [
-      {
-        dishId: "dish-gulab-jamun",
-        name: "Warm Saffron & Pistachio Gulab Jamun",
-        quantity: 2,
-        price: 220
-      }
-    ],
-    totalAmount: 440,
-    prepTimeMins: 8,
-    status: "Order Received",
-    dispatchedAgentId: "W3",
-    createdAt: "20:14:50"
-  }
-];
-var DEMO_AGENT_EVENTS = [
-  {
-    id: "evt-demo-4",
-    tick: 0,
-    timestamp: "20:14:15",
-    agentId: "Host-01",
-    agentName: "Host-01 \xB7 Concierge",
-    agentType: "Host (Goal-Based)",
-    utilityScore: 0.94,
-    targetTableId: "T5",
-    message: "Bayesian Engine marked T5 Skyline North (Billing, 52m) at P(Free\u2081\u2080)=88% \u2014 eligible for pre-allocation."
-  },
-  {
-    id: "evt-demo-5",
-    tick: 0,
-    timestamp: "20:14:22",
-    agentId: "W3",
-    agentName: "W3 \xB7 Rohan",
-    agentType: "Waiter (Utility-Based)",
-    utilityScore: 0.91,
-    targetTableId: "T9",
-    message: "W3 Rohan triggered Rule R3 Saffron Masala Papad & Welcome Drink for Devansh & Riya Malhotra (VIP wait 14m)."
-  },
-  {
-    id: "evt-demo-6",
-    tick: 0,
-    timestamp: "20:14:30",
-    agentId: "Host-01",
-    agentName: "Host-01 \xB7 Concierge",
-    agentType: "Host (Goal-Based)",
-    utilityScore: 0.96,
-    targetTableId: "T10",
-    message: "T10 Heritage Chef Table (Paying, 58m) reached P(Free\u2081\u2080)=91% \u2014 queued for Iyer Accessible Group."
-  },
-  {
-    id: "evt-demo-7",
-    tick: 0,
-    timestamp: "20:14:42",
-    agentId: "W2",
-    agentName: "W2 \xB7 Kavya",
-    agentType: "Waiter (Utility-Based)",
-    utilityScore: 0.89,
-    targetTableId: "T6",
-    message: "W2 Kavya delivered ORD-303 (Gluten-Free Masala Penne + Saffron Gulab Jamun) to T6 Sen Family."
-  },
-  {
-    id: "evt-demo-8",
-    tick: 0,
-    timestamp: "20:14:55",
-    agentId: "W1",
-    agentName: "W1 \xB7 Arjun",
-    agentType: "Waiter (Utility-Based)",
-    utilityScore: 0.93,
-    targetTableId: "T10",
-    message: "W1 Arjun locked atomic recipe pantry check for ORD-305 (2x Dal Makhani + 2x Chicken Paratha) on T10."
-  }
-];
-var DEMO_XAI_LOGS = [
-  {
-    id: "xai-demo-3",
-    timestamp: "20:10:05",
-    partyName: "Kulkarni Family Eight",
-    partySize: 7,
-    assignedTables: ["T3", "T4"],
-    algorithm: "A* Search + Rule R2 Merge",
-    fScore: 4.5,
-    bayesianProb: 1,
-    rulesApplied: ["R1: Accessible Filter", "R2: Merge T3 + T4 (8 seats)"],
-    justification: "No single 7-seat step-free table available; A* combined adjacent Main Hall accessible tables T3 + T4 (1 wasted seat)."
-  },
-  {
-    id: "xai-demo-4",
-    timestamp: "20:11:30",
-    partyName: "Devansh & Riya Malhotra",
-    partySize: 6,
-    assignedTables: ["T8"],
-    algorithm: "A* Search + Rule R3 VIP",
-    fScore: 0.5,
-    bayesianProb: 1,
-    rulesApplied: [
-      "Zone Match: VIP Lounge",
-      "R3: Wait > 10m \u2192 Saffron Masala Papad & Welcome Drink"
-    ],
-    justification: "Matched exact 6-top VIP Salon T8 (0 wasted seats) and dispatched Rule R3 lounge welcome drink without bumping R1 bookings."
-  },
-  {
-    id: "xai-demo-5",
-    timestamp: "20:04:15",
-    partyName: "Ananya Kapoor",
-    partySize: 2,
-    assignedTables: ["T1"],
-    algorithm: "Forward-Chaining + Bayesian Pre-Alloc",
-    fScore: 1.2,
-    bayesianProb: 0.96,
-    rulesApplied: ["Zone Match: Window", "Allergen Audit: Nut-Free Verified"],
-    justification: "Assigned 2-top Window bay T1 for 21:30 turnover (0 wasted seats) and attached strict tree-nut exclusion ticket."
-  },
-  {
-    id: "xai-demo-6",
-    timestamp: "19:48:20",
-    partyName: "Mehta Quartet",
-    partySize: 4,
-    assignedTables: ["T5"],
-    algorithm: "Bayesian Turnover Monitor",
-    fScore: 0.5,
-    bayesianProb: 0.88,
-    rulesApplied: ["Zone Match: Window", "P(Free10) >= 75% Pre-Alloc Ready"],
-    justification: "Billing stage reached 52m elapsed time; Bayesian model forecasts release inside 10 minutes with 88% confidence."
-  }
-];
-async function insertDemoData(client) {
-  const counts = {
-    ingredients: 0,
-    waiting_queue: 0,
-    reservations: 0,
-    kitchen_orders: 0,
-    agent_events: 0,
-    xai_audit_logs: 0
-  };
-  for (const ing of DEMO_INGREDIENTS) {
-    const r = await client.query(
-      `INSERT INTO ingredients (id, name, unit, stock, par_level, per_order_highlight)
-       VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING`,
-      [ing.id, ing.name, ing.unit, ing.stock, ing.parLevel, ing.perOrderHighlight]
-    );
-    counts.ingredients += r.rowCount ?? 0;
-  }
-  for (const p of DEMO_QUEUE) {
-    const r = await client.query(
-      `INSERT INTO waiting_queue (
-        id, name, size, is_vip, needs_wheelchair, preferred_zone,
-        dietary_notes, wait_mins, status, booking_id
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-      ON CONFLICT (id) DO NOTHING`,
-      [
-        p.id,
-        p.name,
-        p.size,
-        p.isVip,
-        p.needsWheelchair,
-        p.preferredZone,
-        p.dietaryNotes ?? "",
-        p.waitMins,
-        p.status,
-        p.bookingId ?? null
-      ]
-    );
-    counts.waiting_queue += r.rowCount ?? 0;
-  }
-  for (const rsv of DEMO_RESERVATIONS) {
-    const r = await client.query(
-      `INSERT INTO reservations (
-        booking_id, guest_name, email, phone, date_time, party_size,
-        preferred_zone, needs_wheelchair, is_vip, special_requests, status,
-        assigned_table_ids, qr_pass_code, triggered_rules,
-        bayesian_confidence_pct, f_score, created_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14::jsonb,$15,$16,$17)
-      ON CONFLICT (booking_id) DO NOTHING`,
-      [
-        rsv.bookingId,
-        rsv.guestName,
-        rsv.email,
-        rsv.phone,
-        rsv.dateTime,
-        rsv.partySize,
-        rsv.preferredZone,
-        rsv.needsWheelchair,
-        rsv.isVip,
-        rsv.specialRequests,
-        rsv.status,
-        JSON.stringify(rsv.assignedTableIds),
-        rsv.qrPassCode,
-        JSON.stringify(rsv.triggeredRules),
-        rsv.bayesianConfidencePct,
-        rsv.fScore,
-        rsv.createdAt
-      ]
-    );
-    counts.reservations += r.rowCount ?? 0;
-  }
-  for (const ord of DEMO_ORDERS) {
-    const r = await client.query(
-      `INSERT INTO kitchen_orders (
-        order_id, table_id, booking_id, items, total_amount,
-        prep_time_mins, status, dispatched_agent_id, created_at
-      ) VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9)
-      ON CONFLICT (order_id) DO NOTHING`,
-      [
-        ord.orderId,
-        ord.tableId,
-        ord.bookingId,
-        JSON.stringify(ord.items),
-        ord.totalAmount,
-        ord.prepTimeMins,
-        ord.status,
-        ord.dispatchedAgentId,
-        ord.createdAt
-      ]
-    );
-    counts.kitchen_orders += r.rowCount ?? 0;
-  }
-  for (const evt of DEMO_AGENT_EVENTS) {
-    const r = await client.query(
-      `INSERT INTO agent_events (
-        id, tick, timestamp, agent_id, agent_name, agent_type,
-        utility_score, target_table_id, message
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-      ON CONFLICT (id) DO NOTHING`,
-      [
-        evt.id,
-        evt.tick,
-        evt.timestamp,
-        evt.agentId,
-        evt.agentName,
-        evt.agentType,
-        evt.utilityScore,
-        evt.targetTableId,
-        evt.message
-      ]
-    );
-    counts.agent_events += r.rowCount ?? 0;
-  }
-  for (const log of DEMO_XAI_LOGS) {
-    const r = await client.query(
-      `INSERT INTO xai_audit_logs (
-        id, timestamp, party_name, party_size, assigned_tables,
-        algorithm, f_score, bayesian_prob, rules_applied, justification
-      ) VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9::jsonb,$10)
-      ON CONFLICT (id) DO NOTHING`,
-      [
-        log.id,
-        log.timestamp,
-        log.partyName,
-        log.partySize,
-        JSON.stringify(log.assignedTables),
-        log.algorithm,
-        log.fScore,
-        log.bayesianProb,
-        JSON.stringify(log.rulesApplied),
-        log.justification
-      ]
-    );
-    counts.xai_audit_logs += r.rowCount ?? 0;
-  }
-  return counts;
-}
-
 // backend/db/neon.ts
+var InsufficientStockError = class extends Error {
+  constructor(ingredientId) {
+    super(`Insufficient stock for ingredient ${ingredientId}`);
+    this.name = "InsufficientStockError";
+    this.ingredientId = ingredientId;
+  }
+};
 var pool = null;
 var schemaReadyPromise = null;
 function getDbPool() {
@@ -2555,6 +1574,62 @@ async function withTransaction(fn) {
     client.release();
   }
 }
+async function syncCatalogData(client) {
+  for (const ing of INITIAL_INGREDIENTS) {
+    await client.query(
+      `INSERT INTO ingredients (
+        id, name, unit, stock, par_level, per_order_highlight
+      ) VALUES ($1,$2,$3,$4,$5,$6)
+      ON CONFLICT (id) DO NOTHING`,
+      [
+        ing.id,
+        ing.name,
+        ing.unit,
+        ing.stock,
+        ing.parLevel,
+        ing.perOrderHighlight
+      ]
+    );
+  }
+  const dishIds = MENU_DISHES.map((d) => d.id);
+  if (dishIds.length > 0) {
+    await client.query(`DELETE FROM menu_dishes WHERE NOT (id = ANY($1::text[]))`, [
+      dishIds
+    ]);
+  }
+  for (const dish of MENU_DISHES) {
+    await client.query(
+      `INSERT INTO menu_dishes (
+        id, name, category, description, price, prep_mins,
+        dietary_tags, is_veg, image, recipe, substitute_dish_ids
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10::jsonb,$11::jsonb)
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        category = EXCLUDED.category,
+        description = EXCLUDED.description,
+        price = EXCLUDED.price,
+        prep_mins = EXCLUDED.prep_mins,
+        dietary_tags = EXCLUDED.dietary_tags,
+        is_veg = EXCLUDED.is_veg,
+        image = EXCLUDED.image,
+        recipe = EXCLUDED.recipe,
+        substitute_dish_ids = EXCLUDED.substitute_dish_ids`,
+      [
+        dish.id,
+        dish.name,
+        dish.category,
+        dish.description,
+        dish.price,
+        dish.prepMins,
+        JSON.stringify(dish.dietaryTags),
+        dish.isVeg,
+        dish.image,
+        JSON.stringify(dish.recipe),
+        JSON.stringify(dish.substituteDishIds)
+      ]
+    );
+  }
+}
 async function seedInitialData(client) {
   for (const t of INITIAL_TABLES) {
     await client.query(
@@ -2584,115 +1659,7 @@ async function seedInitialData(client) {
       ]
     );
   }
-  for (const p of INITIAL_QUEUE) {
-    await client.query(
-      `INSERT INTO waiting_queue (
-        id, name, size, is_vip, needs_wheelchair, preferred_zone,
-        dietary_notes, wait_mins, status, booking_id
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-      ON CONFLICT (id) DO NOTHING`,
-      [
-        p.id,
-        p.name,
-        p.size,
-        p.isVip,
-        p.needsWheelchair,
-        p.preferredZone,
-        p.dietaryNotes ?? "",
-        p.waitMins,
-        p.status,
-        p.bookingId ?? null
-      ]
-    );
-  }
-  for (const r of INITIAL_RESERVATIONS) {
-    await client.query(
-      `INSERT INTO reservations (
-        booking_id, guest_name, email, phone, date_time, party_size,
-        preferred_zone, needs_wheelchair, is_vip, special_requests, status,
-        assigned_table_ids, qr_pass_code, triggered_rules,
-        bayesian_confidence_pct, f_score, created_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14::jsonb,$15,$16,$17)
-      ON CONFLICT (booking_id) DO NOTHING`,
-      [
-        r.bookingId,
-        r.guestName,
-        r.email,
-        r.phone,
-        r.dateTime,
-        r.partySize,
-        r.preferredZone,
-        r.needsWheelchair,
-        r.isVip,
-        r.specialRequests,
-        r.status,
-        JSON.stringify(r.assignedTableIds),
-        r.qrPassCode,
-        JSON.stringify(r.triggeredRules),
-        r.bayesianConfidencePct,
-        r.fScore,
-        r.createdAt
-      ]
-    );
-  }
-  for (const ing of INITIAL_INGREDIENTS) {
-    await client.query(
-      `INSERT INTO ingredients (
-        id, name, unit, stock, par_level, per_order_highlight
-      ) VALUES ($1,$2,$3,$4,$5,$6)
-      ON CONFLICT (id) DO NOTHING`,
-      [
-        ing.id,
-        ing.name,
-        ing.unit,
-        ing.stock,
-        ing.parLevel,
-        ing.perOrderHighlight
-      ]
-    );
-  }
-  for (const dish of MENU_DISHES) {
-    await client.query(
-      `INSERT INTO menu_dishes (
-        id, name, category, description, price, prep_mins,
-        dietary_tags, is_veg, image, recipe, substitute_dish_ids
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10::jsonb,$11::jsonb)
-      ON CONFLICT (id) DO UPDATE SET image = EXCLUDED.image`,
-      [
-        dish.id,
-        dish.name,
-        dish.category,
-        dish.description,
-        dish.price,
-        dish.prepMins,
-        JSON.stringify(dish.dietaryTags),
-        dish.isVeg,
-        dish.image,
-        JSON.stringify(dish.recipe),
-        JSON.stringify(dish.substituteDishIds)
-      ]
-    );
-  }
-  for (const ord of INITIAL_ORDERS) {
-    await client.query(
-      `INSERT INTO kitchen_orders (
-        order_id, table_id, booking_id, items, total_amount,
-        prep_time_mins, status, dispatched_agent_id, created_at
-      ) VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9)
-      ON CONFLICT (order_id) DO NOTHING`,
-      [
-        ord.orderId,
-        ord.tableId,
-        ord.bookingId,
-        JSON.stringify(ord.items),
-        ord.totalAmount,
-        ord.prepTimeMins,
-        ord.status,
-        ord.dispatchedAgentId,
-        ord.createdAt
-      ]
-    );
-  }
+  await syncCatalogData(client);
   for (const w of INITIAL_WAITERS) {
     await client.query(
       `INSERT INTO waiter_agents (
@@ -2714,48 +1681,6 @@ async function seedInitialData(client) {
       ]
     );
   }
-  for (const evt of INITIAL_AGENT_EVENTS) {
-    await client.query(
-      `INSERT INTO agent_events (
-        id, tick, timestamp, agent_id, agent_name, agent_type,
-        utility_score, target_table_id, message
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-      ON CONFLICT (id) DO NOTHING`,
-      [
-        evt.id,
-        evt.tick,
-        evt.timestamp,
-        evt.agentId,
-        evt.agentName,
-        evt.agentType,
-        evt.utilityScore,
-        evt.targetTableId,
-        evt.message
-      ]
-    );
-  }
-  for (const log of INITIAL_XAI_LOGS) {
-    await client.query(
-      `INSERT INTO xai_audit_logs (
-        id, timestamp, party_name, party_size, assigned_tables,
-        algorithm, f_score, bayesian_prob, rules_applied, justification
-      ) VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9::jsonb,$10)
-      ON CONFLICT (id) DO NOTHING`,
-      [
-        log.id,
-        log.timestamp,
-        log.partyName,
-        log.partySize,
-        JSON.stringify(log.assignedTables),
-        log.algorithm,
-        log.fScore,
-        log.bayesianProb,
-        JSON.stringify(log.rulesApplied),
-        log.justification
-      ]
-    );
-  }
-  await insertDemoData(client);
 }
 async function ensureSchemaAndSeed() {
   if (schemaReadyPromise) return schemaReadyPromise;
@@ -2772,12 +1697,7 @@ async function ensureSchemaAndSeed() {
         if (count === 0) {
           await seedInitialData(client);
         } else {
-          const { rows: dishRows } = await client.query(
-            "SELECT COUNT(*)::text AS count FROM menu_dishes"
-          );
-          if (Number(dishRows[0]?.count ?? "0") === 0) {
-            await seedInitialData(client);
-          }
+          await syncCatalogData(client);
         }
       });
       return true;
@@ -3154,12 +2074,19 @@ async function persistGuestArrivalTransaction(params) {
   });
 }
 async function persistOrderAndInventoryTransaction(params) {
-  await withTransaction(async (client) => {
-    for (const ing of params.updatedIngredients) {
-      await client.query(
-        `UPDATE ingredients SET stock = $2, updated_at = NOW() WHERE id = $1`,
-        [ing.id, ing.stock]
+  return withTransaction(async (client) => {
+    for (const d of params.deductions) {
+      if (d.amount <= 0) continue;
+      const upd = await client.query(
+        `UPDATE ingredients
+         SET stock = stock - $2, updated_at = NOW()
+         WHERE id = $1 AND stock >= $2
+         RETURNING *`,
+        [d.ingredientId, d.amount]
       );
+      if (upd.rowCount === 0) {
+        throw new InsufficientStockError(d.ingredientId);
+      }
     }
     const o = params.order;
     await client.query(
@@ -3205,31 +2132,51 @@ async function persistOrderAndInventoryTransaction(params) {
         e.message
       ]
     );
+    const { rows } = await client.query(
+      `SELECT * FROM ingredients ORDER BY id ASC`
+    );
+    return rows.map(mapIngredientRow);
   });
 }
 async function persistTableStateUpdate(params) {
   const db = getDbPool();
   if (!db) return null;
-  const { rows } = await db.query(
-    `UPDATE restaurant_tables
-     SET status = $2,
-         current_course = $3,
-         elapsed_mins = $4,
-         assigned_party_id = CASE WHEN $5 THEN NULL ELSE assigned_party_id END,
-         assigned_party_name = CASE WHEN $5 THEN NULL ELSE assigned_party_name END,
-         assigned_party_size = CASE WHEN $5 THEN NULL ELSE assigned_party_size END,
-         updated_at = NOW()
-     WHERE id = $1
-     RETURNING *`,
-    [
-      params.tableId,
-      params.status,
-      params.currentCourse,
-      params.elapsedMins,
-      params.clearParty
-    ]
-  );
-  return rows[0] ? mapTableRow(rows[0]) : null;
+  return withTransaction(async (client) => {
+    const prevRes = await client.query(
+      `SELECT active_booking_id FROM restaurant_tables WHERE id = $1`,
+      [params.tableId]
+    );
+    const prevBookingId = prevRes.rows[0]?.active_booking_id ?? null;
+    const { rows } = await client.query(
+      `UPDATE restaurant_tables
+       SET status = $2,
+           current_course = $3,
+           elapsed_mins = $4,
+           assigned_party_id = CASE WHEN $5 THEN NULL ELSE assigned_party_id END,
+           assigned_party_name = CASE WHEN $5 THEN NULL ELSE assigned_party_name END,
+           assigned_party_size = CASE WHEN $5 THEN NULL ELSE assigned_party_size END,
+           active_booking_id = CASE WHEN $5 THEN NULL ELSE active_booking_id END,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [
+        params.tableId,
+        params.status,
+        params.currentCourse,
+        params.elapsedMins,
+        params.clearParty
+      ]
+    );
+    if (params.clearParty && prevBookingId && prevBookingId !== "WALKIN") {
+      await client.query(
+        `UPDATE reservations
+         SET status = 'COMPLETED'
+         WHERE booking_id = $1 AND status = 'SEATED'`,
+        [prevBookingId]
+      );
+    }
+    return rows[0] ? mapTableRow(rows[0]) : null;
+  });
 }
 async function persistIngredientStockUpdate(ingredientId, stock) {
   const db = getDbPool();
@@ -3252,6 +2199,11 @@ async function persistOrderStatusAdvance(orderId, nextStatus) {
 async function persistSimulationStep(params) {
   await withTransaction(async (client) => {
     for (const t of params.tables) {
+      const prevRes = await client.query(
+        `SELECT active_booking_id FROM restaurant_tables WHERE id = $1`,
+        [t.id]
+      );
+      const prevBookingId = prevRes.rows[0]?.active_booking_id ?? null;
       await client.query(
         `UPDATE restaurant_tables
          SET status = $2,
@@ -3260,6 +2212,7 @@ async function persistSimulationStep(params) {
              assigned_party_id = $5,
              assigned_party_name = $6,
              assigned_party_size = $7,
+             active_booking_id = $8,
              updated_at = NOW()
          WHERE id = $1`,
         [
@@ -3269,9 +2222,18 @@ async function persistSimulationStep(params) {
           t.elapsedMins,
           t.assignedPartyId,
           t.assignedPartyName,
-          t.assignedPartySize
+          t.assignedPartySize,
+          t.activeBookingId ?? null
         ]
       );
+      if ((t.status === "Free" || t.status === "Dirty") && prevBookingId && prevBookingId !== "WALKIN") {
+        await client.query(
+          `UPDATE reservations
+           SET status = 'COMPLETED'
+           WHERE booking_id = $1 AND status = 'SEATED'`,
+          [prevBookingId]
+        );
+      }
     }
     for (const p of params.queue) {
       await client.query(
@@ -3305,6 +2267,7 @@ async function persistSimulationStep(params) {
        SET status = CASE
          WHEN status = 'Order Received' THEN 'Preparing'
          WHEN status = 'Preparing' THEN 'Waiter En Route'
+         WHEN status = 'Waiter En Route' THEN 'Served'
          ELSE status
        END`
     );
@@ -3330,6 +2293,38 @@ async function persistSimulationStep(params) {
     }
   });
 }
+async function cancelReservationInDb(bookingId) {
+  return withTransaction(async (client) => {
+    const { rows } = await client.query(
+      `UPDATE reservations
+       SET status = 'CANCELLED'
+       WHERE booking_id = $1 AND status <> 'CANCELLED'
+       RETURNING *`,
+      [bookingId]
+    );
+    if (rows.length === 0) {
+      return { ok: false };
+    }
+    await client.query(
+      `DELETE FROM waiting_queue WHERE booking_id = $1 AND status = 'WAITING'`,
+      [bookingId]
+    );
+    await client.query(
+      `UPDATE restaurant_tables
+       SET status = 'Free',
+           current_course = 'None',
+           elapsed_mins = 0,
+           assigned_party_id = NULL,
+           assigned_party_name = NULL,
+           assigned_party_size = NULL,
+           active_booking_id = NULL,
+           updated_at = NOW()
+       WHERE active_booking_id = $1`,
+      [bookingId]
+    );
+    return { ok: true, reservation: mapReservationRow(rows[0]) };
+  });
+}
 async function resetNeonFloorToSeed() {
   const ready = await ensureSchemaAndSeed();
   if (!ready) return null;
@@ -3346,16 +2341,6 @@ async function resetNeonFloorToSeed() {
     await seedInitialData(client);
   });
   return fetchFullFloorSnapshot();
-}
-async function seedDemoDataInDb() {
-  const ready = await ensureSchemaAndSeed();
-  if (!ready) {
-    return { ok: false, insertedCounts: {} };
-  }
-  const insertedCounts = await withTransaction(
-    async (client) => insertDemoData(client)
-  );
-  return { ok: true, insertedCounts };
 }
 
 // backend/app.ts
@@ -3403,7 +2388,7 @@ function createApiApp() {
     await ensureSchemaAndSeed().catch(() => false);
     const health = await checkDbHealth();
     res.json({
-      ok: true,
+      ok: health.connected,
       service: "khana-khazana-dual-portal",
       dbConnected: health.connected,
       dbLatencyMs: health.latencyMs,
@@ -3434,20 +2419,43 @@ function createApiApp() {
   app.post("/api/bookings/validate", async (req, res) => {
     const t0 = performance.now();
     const body = req.body ?? {};
-    if (!body.request) {
+    const r = body.request;
+    if (!r) {
       res.status(400).json({ error: "Invalid booking validation payload." });
+      return;
+    }
+    if (!r.guestName?.trim() || !r.email?.trim() || !r.phone?.trim() || !r.dateTime?.trim()) {
+      res.status(400).json({
+        error: "Guest name, email, phone number, and date/time slot are required."
+      });
+      return;
+    }
+    if (!Number.isFinite(r.partySize) || r.partySize < 1 || r.partySize > 10) {
+      res.status(400).json({ error: "Party size must be between 1 and 10 guests." });
+      return;
+    }
+    const parsedSlot = Date.parse(r.dateTime);
+    if (Number.isNaN(parsedSlot)) {
+      res.status(400).json({ error: "Invalid reservation date and time format." });
+      return;
+    }
+    if (parsedSlot < Date.now() - 15 * 6e4) {
+      res.status(400).json({
+        error: "Cannot create a reservation in the past. Please choose an upcoming time slot."
+      });
       return;
     }
     try {
       const snap = await fetchFullFloorSnapshot();
-      const liveTables = snap?.tables ?? (Array.isArray(body.tables) && body.tables.length > 0 ? body.tables : INITIAL_TABLES);
-      const liveReservations = snap?.reservations ?? (Array.isArray(body.reservations) ? body.reservations : INITIAL_RESERVATIONS);
+      if (!snap) {
+        res.status(503).json({ error: "NeonDB connection unavailable." });
+        return;
+      }
       const result = validateBookingWorkflow(
-        body.request,
-        liveTables,
-        liveReservations
+        r,
+        snap.tables,
+        snap.reservations
       );
-      let persistedToDb = false;
       if (result.fulfillable && result.reservation) {
         const rec = result.reservation;
         const newParty = {
@@ -3458,7 +2466,7 @@ function createApiApp() {
           needsWheelchair: rec.needsWheelchair,
           preferredZone: rec.preferredZone,
           dietaryNotes: rec.specialRequests,
-          waitMins: rec.isVip ? 11 : 2,
+          waitMins: 0,
           status: "WAITING",
           bookingId: rec.bookingId
         };
@@ -3474,7 +2482,7 @@ function createApiApp() {
           rulesApplied: rec.triggeredRules,
           justification: `Booked ${rec.assignedTableIds.join(
             " + "
-          )} (${rec.bookingId}) with email confirmation sent to ${rec.email}.`
+          )} (${rec.bookingId}) with pass confirmation for ${rec.email}.`
         };
         const newEvent = {
           id: `evt-bk-${Date.now()}`,
@@ -3489,25 +2497,41 @@ function createApiApp() {
             " + "
           )} for ${rec.guestName} (${rec.bookingId}) in NeonDB.`
         };
-        if (snap) {
-          await persistBookingTransaction({
-            reservation: rec,
-            party: newParty,
-            xaiLog: newXaiLog,
-            agentEvent: newEvent
-          });
-          persistedToDb = true;
-        }
+        await persistBookingTransaction({
+          reservation: rec,
+          party: newParty,
+          xaiLog: newXaiLog,
+          agentEvent: newEvent
+        });
       }
       res.json({
         ...result,
-        persistedToDb,
-        responseTimeMs: Math.max(25, Math.round(performance.now() - t0))
+        persistedToDb: Boolean(result.fulfillable && result.reservation),
+        responseTimeMs: Math.max(1, Math.round(performance.now() - t0))
       });
     } catch (err) {
       console.error("[/api/bookings/validate] Error:", err);
       res.status(500).json({
         error: err instanceof Error ? err.message : "Booking validation failed"
+      });
+    }
+  });
+  app.post("/api/reservations/:bookingId/cancel", async (req, res) => {
+    try {
+      const snap = await fetchFullFloorSnapshot();
+      if (!snap) {
+        res.status(503).json({ error: "NeonDB connection unavailable." });
+        return;
+      }
+      const outcome = await cancelReservationInDb(req.params.bookingId);
+      if (!outcome.ok) {
+        res.status(404).json({ error: "Active reservation not found." });
+        return;
+      }
+      res.json({ ok: true, reservation: outcome.reservation });
+    } catch (err) {
+      res.status(500).json({
+        error: err instanceof Error ? err.message : "Failed to cancel reservation"
       });
     }
   });
@@ -3529,7 +2553,7 @@ function createApiApp() {
         (p) => (p.id === idOrBooking || p.bookingId === idOrBooking) && p.status === "WAITING"
       );
       const matchedRes = snap.reservations.find(
-        (r) => r.bookingId === idOrBooking
+        (r) => r.bookingId === idOrBooking && r.status !== "CANCELLED"
       );
       const targetParty = matchedParty ?? (matchedRes ? {
         id: `P-${matchedRes.bookingId.replace("KK-", "")}`,
@@ -3544,7 +2568,7 @@ function createApiApp() {
         bookingId: matchedRes.bookingId
       } : null);
       if (!targetParty) {
-        res.status(404).json({ error: "Party or reservation not found." });
+        res.status(404).json({ error: "Waiting party or reservation not found." });
         return;
       }
       const remaining = Math.max(
@@ -3558,7 +2582,7 @@ function createApiApp() {
         body.weights
       );
       const ts = nowTimeString();
-      const responseTimeMs = Math.max(25, Math.round(performance.now() - t0));
+      const responseTimeMs = Math.max(1, Math.round(performance.now() - t0));
       const xaiLog = {
         id: `xai-arr-${Date.now()}`,
         timestamp: ts,
@@ -3610,26 +2634,48 @@ function createApiApp() {
   app.post("/api/orders/validate-ingredients", async (req, res) => {
     const t0 = performance.now();
     const body = req.body ?? {};
-    if (!body.request) {
-      res.status(400).json({ error: "Invalid order inventory payload." });
+    const orderReq = body.request;
+    if (!orderReq || !Array.isArray(orderReq.items) || orderReq.items.length === 0) {
+      res.status(400).json({ error: "At least one menu item is required to place an order." });
       return;
     }
     try {
       const snap = await fetchFullFloorSnapshot();
-      const liveDishes = snap?.menuDishes && snap.menuDishes.length > 0 ? snap.menuDishes : Array.isArray(body.menuDishes) && body.menuDishes.length > 0 ? body.menuDishes : MENU_DISHES;
-      const liveIngredients = snap?.ingredients ?? (Array.isArray(body.ingredients) && body.ingredients.length > 0 ? body.ingredients : INITIAL_INGREDIENTS);
+      if (!snap) {
+        res.status(503).json({ error: "NeonDB connection unavailable." });
+        return;
+      }
+      const tbl = snap.tables.find((t) => t.id === orderReq.tableId);
+      if (!tbl) {
+        res.status(404).json({ error: `Table ${orderReq.tableId} does not exist.` });
+        return;
+      }
       const result = validateOrderIngredientsWorkflow(
-        body.request,
-        liveDishes,
-        liveIngredients
+        orderReq,
+        snap.menuDishes,
+        snap.ingredients
       );
-      if (result.ok && result.order && result.updatedIngredients && snap) {
-        const tbl = snap.tables.find((t) => t.id === body.request.tableId);
+      if (result.ok && result.order) {
+        const dishById = new Map(snap.menuDishes.map((d) => [d.id, d]));
+        const deductionMap = /* @__PURE__ */ new Map();
+        for (const item of orderReq.items) {
+          const dish = dishById.get(item.dishId);
+          if (!dish || item.quantity <= 0) continue;
+          for (const r of dish.recipe) {
+            deductionMap.set(
+              r.ingredientId,
+              (deductionMap.get(r.ingredientId) ?? 0) + r.amount * item.quantity
+            );
+          }
+        }
+        const deductions = Array.from(deductionMap.entries()).map(
+          ([ingredientId, amount]) => ({ ingredientId, amount })
+        );
         const matchingWaiter = snap.waiters.find(
-          (w) => w.role === "Waiter (Utility-Based)" && w.zone === tbl?.zone
+          (w) => w.role === "Waiter (Utility-Based)" && w.zone === tbl.zone
         ) ?? snap.waiters[0];
         result.order.dispatchedAgentId = matchingWaiter?.id ?? "W1";
-        const responseTimeMs = Math.max(25, Math.round(performance.now() - t0));
+        const responseTimeMs = Math.max(1, Math.round(performance.now() - t0));
         const agentEvent = {
           id: `evt-ord-${Date.now()}`,
           tick: 0,
@@ -3638,27 +2684,47 @@ function createApiApp() {
           agentName: matchingWaiter?.name ?? "W1 \xB7 Arjun",
           agentType: "Waiter (Utility-Based)",
           utilityScore: 0.95,
-          targetTableId: body.request.tableId,
-          message: `QR Order ${result.order.orderId} committed atomically in NeonDB (${responseTimeMs}ms) \u2192 Dispatched to ${matchingWaiter?.name ?? "Waiter"} for ${body.request.tableId}.`
+          targetTableId: orderReq.tableId,
+          message: `QR Order ${result.order.orderId} committed atomically in NeonDB (${responseTimeMs}ms) \u2192 Dispatched to ${matchingWaiter?.name ?? "Waiter"} for ${orderReq.tableId}.`
         };
-        await persistOrderAndInventoryTransaction({
-          order: result.order,
-          updatedIngredients: result.updatedIngredients,
-          waiterId: matchingWaiter?.id ?? "W1",
-          agentEvent
-        });
-        res.json({
-          ...result,
-          persistedToDb: true,
-          responseTimeMs,
-          agentEvent
-        });
-        return;
+        try {
+          const persistedIngredients = await persistOrderAndInventoryTransaction({
+            order: result.order,
+            deductions,
+            waiterId: matchingWaiter?.id ?? "W1",
+            agentEvent
+          });
+          res.json({
+            ...result,
+            updatedIngredients: persistedIngredients,
+            persistedToDb: true,
+            responseTimeMs,
+            agentEvent
+          });
+          return;
+        } catch (txErr) {
+          if (txErr instanceof InsufficientStockError) {
+            const latestSnap = await fetchFullFloorSnapshot();
+            const retryResult = latestSnap ? validateOrderIngredientsWorkflow(
+              orderReq,
+              latestSnap.menuDishes,
+              latestSnap.ingredients
+            ) : result;
+            res.status(409).json({
+              ...retryResult,
+              ok: false,
+              persistedToDb: false,
+              responseTimeMs: Math.max(1, Math.round(performance.now() - t0))
+            });
+            return;
+          }
+          throw txErr;
+        }
       }
       res.json({
         ...result,
         persistedToDb: false,
-        responseTimeMs: Math.max(20, Math.round(performance.now() - t0))
+        responseTimeMs: Math.max(1, Math.round(performance.now() - t0))
       });
     } catch (err) {
       console.error("[/api/orders/validate-ingredients] Error:", err);
@@ -3670,12 +2736,16 @@ function createApiApp() {
   app.patch("/api/orders/:orderId/advance", async (req, res) => {
     try {
       const snap = await fetchFullFloorSnapshot();
-      const target = snap?.orders.find((o) => o.orderId === req.params.orderId);
+      if (!snap) {
+        res.status(503).json({ error: "NeonDB connection unavailable." });
+        return;
+      }
+      const target = snap.orders.find((o) => o.orderId === req.params.orderId);
       if (!target) {
         res.status(404).json({ error: "Order not found." });
         return;
       }
-      const nextStatus = target.status === "Order Received" ? "Preparing" : target.status === "Preparing" ? "Waiter En Route" : "Waiter En Route";
+      const nextStatus = target.status === "Order Received" ? "Preparing" : target.status === "Preparing" ? "Waiter En Route" : "Served";
       const updated = await persistOrderStatusAdvance(
         req.params.orderId,
         nextStatus
@@ -3717,7 +2787,11 @@ function createApiApp() {
     }
     try {
       const snap = await fetchFullFloorSnapshot();
-      const current = snap?.tables.find((t) => t.id === req.params.id);
+      if (!snap) {
+        res.status(503).json({ error: "NeonDB connection unavailable." });
+        return;
+      }
+      const current = snap.tables.find((t) => t.id === req.params.id);
       if (!current) {
         res.status(404).json({ error: "Table not found." });
         return;
@@ -3776,25 +2850,6 @@ function createApiApp() {
       });
     }
   });
-  app.post("/api/floor/seed-demo", async (_req, res) => {
-    try {
-      const seedRes = await seedDemoDataInDb();
-      if (!seedRes.ok) {
-        res.status(503).json({ error: "NeonDB connection unavailable." });
-        return;
-      }
-      const snap = await fetchFullFloorSnapshot();
-      res.json({
-        ok: true,
-        insertedCounts: seedRes.insertedCounts,
-        snapshot: snap
-      });
-    } catch (err) {
-      res.status(500).json({
-        error: err instanceof Error ? err.message : "Demo data seed failed"
-      });
-    }
-  });
   app.post("/api/ai/allocate-table", (req, res) => {
     const body = req.body ?? {};
     if (!Array.isArray(body.tables) || !body.party) {
@@ -3813,35 +2868,32 @@ function createApiApp() {
     const t0 = performance.now();
     const userMessage = typeof body.message === "string" ? body.message.trim() : "";
     const portal = body.portal === "customer" ? "customer" : "admin";
-    const snap = await fetchFullFloorSnapshot().catch(() => null);
-    const tables = snap?.tables ?? (Array.isArray(body.tables) && body.tables.length > 0 ? body.tables : INITIAL_TABLES);
-    const queue = snap?.queue ?? (Array.isArray(body.queue) && body.queue.length > 0 ? body.queue : INITIAL_QUEUE);
-    const waiters = snap?.waiters ?? (Array.isArray(body.waiters) && body.waiters.length > 0 ? body.waiters : INITIAL_WAITERS);
-    const ingredients = snap?.ingredients ?? (Array.isArray(body.ingredients) && body.ingredients.length > 0 ? body.ingredients : INITIAL_INGREDIENTS);
-    const reservations = snap?.reservations ?? (Array.isArray(body.reservations) && body.reservations.length > 0 ? body.reservations : INITIAL_RESERVATIONS);
-    if (isExplicitOutOfScopeQuery(userMessage)) {
+    const groqApiKey = (process.env.GROQ_API_KEY ?? "").trim();
+    if (!isGroqConfigured()) {
       return {
-        reply: HALLUCINATION_REFUSAL_TEXT,
-        sources: ["[restaurant_policies.md]", "[live_floor_db]"],
-        refusalTriggered: true,
-        grounded: true,
-        latencyMs: Math.max(12, Math.round(performance.now() - t0)),
-        model: "openai/gpt-oss-120b",
-        provider: isGroqConfigured() ? "groq" : "grounded-simulator"
+        ok: false,
+        status: 503,
+        error: "GROQ_API_KEY is not configured on the server."
       };
     }
-    const groqApiKey = (process.env.GROQ_API_KEY ?? "").trim();
-    if (isGroqConfigured()) {
-      try {
-        const ragContext = buildGroqKnowledgeContext({
-          portal,
-          tables,
-          queue,
-          waiters,
-          ingredients,
-          reservations
-        });
-        const systemPrompt = `You are the Grounded AI ${portal === "customer" ? "Concierge" : "Ma\xEEtre D'"} for Khana-Khazana ("Where Culinary Heritage Meets Autonomous Intelligence").
+    const snap = await fetchFullFloorSnapshot().catch(() => null);
+    if (!snap) {
+      return {
+        ok: false,
+        status: 503,
+        error: "NeonDB connection unavailable for grounded assistant context."
+      };
+    }
+    const ragContext = buildGroqKnowledgeContext({
+      portal,
+      tables: snap.tables,
+      queue: snap.queue,
+      waiters: snap.waiters,
+      ingredients: snap.ingredients,
+      reservations: snap.reservations,
+      menuDishes: snap.menuDishes
+    });
+    const systemPrompt = `You are the Grounded AI ${portal === "customer" ? "Concierge" : "Ma\xEEtre D'"} for Khana-Khazana ("Where Culinary Heritage Meets Autonomous Intelligence").
 INSTRUCTIONS:
 1. If the user greets you or asks who you are / what you can help with (e.g. "hi", "hello", "who are you"), warmly introduce yourself as the Khana-Khazana AI ${portal === "customer" ? "Concierge" : "Ma\xEEtre D'"} powered by Groq (openai/gpt-oss-120b), mention our operating hours (11:30 AM \u2013 11:30 PM), dining zones (Window, Main Hall, VIP Lounge), and invite questions about live tables, wheelchair accessibility (T3+T4), allergens, or live kitchen stock. Set "refusalTriggered": false.
 2. Answer restaurant questions concisely (2-3 clear sentences) and politely using ONLY the injected Restaurant Knowledge Base and Live Floor & Kitchen State below. Cite exact table IDs (T1-T10), dish prices/allergens, or live gram/unit ingredient stock counts whenever relevant.
@@ -3850,80 +2902,78 @@ INSTRUCTIONS:
 4. Always respond with a valid JSON object: {"reply": string, "sources": string[], "refusalTriggered": boolean} where "sources" uses ["[restaurant_policies.md]", "[live_floor_db]"].
 
 ${ragContext}`;
-        const controller = new AbortController();
-        const timeoutHandle = setTimeout(() => controller.abort(), 9e3);
-        const groqResp = await fetch(
-          "https://api.groq.com/openai/v1/chat/completions",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${groqApiKey}`
-            },
-            body: JSON.stringify({
-              model: "openai/gpt-oss-120b",
-              temperature: 0.1,
-              response_format: { type: "json_object" },
-              messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userMessage }
-              ]
-            }),
-            signal: controller.signal
-          }
-        ).finally(() => clearTimeout(timeoutHandle));
-        if (!groqResp.ok) {
-          const errText = await groqResp.text().catch(() => "");
-          throw new Error(`Groq HTTP ${groqResp.status}: ${errText.slice(0, 120)}`);
-        }
-        const completion = await groqResp.json();
-        const rawContent = completion.choices?.[0]?.message?.content?.trim() ?? "";
-        const parsed = parseGroqJsonContent(rawContent);
-        if (parsed?.reply && typeof parsed.reply === "string") {
-          const isRefusal = Boolean(parsed.refusalTriggered) || parsed.reply.trim() === HALLUCINATION_REFUSAL_TEXT;
-          return {
-            reply: isRefusal ? HALLUCINATION_REFUSAL_TEXT : parsed.reply.trim(),
-            sources: Array.isArray(parsed.sources) && parsed.sources.length > 0 ? parsed.sources : ["[restaurant_policies.md]", "[live_floor_db]"],
-            refusalTriggered: isRefusal,
-            grounded: true,
-            latencyMs: Math.max(25, Math.round(performance.now() - t0)),
+    try {
+      const controller = new AbortController();
+      const timeoutHandle = setTimeout(() => controller.abort(), 12e3);
+      const groqResp = await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${groqApiKey}`
+          },
+          body: JSON.stringify({
             model: "openai/gpt-oss-120b",
-            provider: "groq"
-          };
+            temperature: 0.1,
+            response_format: { type: "json_object" },
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userMessage }
+            ]
+          }),
+          signal: controller.signal
         }
-        if (rawContent) {
-          const isRefusal = rawContent === HALLUCINATION_REFUSAL_TEXT;
-          return {
-            reply: rawContent,
-            sources: ["[restaurant_policies.md]", "[live_floor_db]"],
-            refusalTriggered: isRefusal,
-            grounded: true,
-            latencyMs: Math.max(25, Math.round(performance.now() - t0)),
-            model: "openai/gpt-oss-120b",
-            provider: "groq"
-          };
-        }
-      } catch (err) {
-        console.warn("Groq inference failed, falling back to deterministic RAG:", err);
+      ).finally(() => clearTimeout(timeoutHandle));
+      if (!groqResp.ok) {
+        const errText = await groqResp.text().catch(() => "");
+        return {
+          ok: false,
+          status: 502,
+          error: `Groq API returned HTTP ${groqResp.status}${errText ? `: ${errText.slice(0, 140)}` : ""}`
+        };
       }
+      const completion = await groqResp.json();
+      const rawContent = completion.choices?.[0]?.message?.content?.trim() ?? "";
+      const parsed = parseGroqJsonContent(rawContent);
+      if (parsed?.reply && typeof parsed.reply === "string") {
+        const isRefusal = Boolean(parsed.refusalTriggered) || parsed.reply.trim() === HALLUCINATION_REFUSAL_TEXT;
+        return {
+          ok: true,
+          reply: isRefusal ? HALLUCINATION_REFUSAL_TEXT : parsed.reply.trim(),
+          sources: Array.isArray(parsed.sources) && parsed.sources.length > 0 ? parsed.sources : ["[restaurant_policies.md]", "[live_floor_db]"],
+          refusalTriggered: isRefusal,
+          grounded: true,
+          latencyMs: Math.max(1, Math.round(performance.now() - t0)),
+          model: "openai/gpt-oss-120b",
+          provider: "groq"
+        };
+      }
+      if (rawContent) {
+        const isRefusal = rawContent === HALLUCINATION_REFUSAL_TEXT;
+        return {
+          ok: true,
+          reply: rawContent,
+          sources: ["[restaurant_policies.md]", "[live_floor_db]"],
+          refusalTriggered: isRefusal,
+          grounded: true,
+          latencyMs: Math.max(1, Math.round(performance.now() - t0)),
+          model: "openai/gpt-oss-120b",
+          provider: "groq"
+        };
+      }
+      return {
+        ok: false,
+        status: 502,
+        error: "Groq API returned an empty response."
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        status: 502,
+        error: err instanceof Error ? err.message : "Groq API request failed."
+      };
     }
-    const deterministicCheck = evaluateGroundedMaitreD(
-      userMessage,
-      tables,
-      queue,
-      waiters,
-      ingredients,
-      reservations
-    );
-    return {
-      reply: deterministicCheck.reply,
-      sources: deterministicCheck.sources,
-      refusalTriggered: deterministicCheck.refusalTriggered,
-      grounded: true,
-      latencyMs: Math.max(18, Math.round(performance.now() - t0)),
-      model: "openai/gpt-oss-120b",
-      provider: "grounded-simulator"
-    };
   }
   app.post("/api/groq/chat", async (req, res) => {
     const body = req.body ?? {};
@@ -3932,6 +2982,10 @@ ${ragContext}`;
       return;
     }
     const result = await handleGroundedAssistantRequest(body);
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
     res.json(result);
   });
   app.post("/api/maitre-d", async (req, res) => {
@@ -3941,6 +2995,10 @@ ${ragContext}`;
       return;
     }
     const result = await handleGroundedAssistantRequest(body);
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
     res.json(result);
   });
   return app;

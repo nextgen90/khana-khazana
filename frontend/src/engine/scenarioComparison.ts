@@ -74,7 +74,7 @@ export interface EvaluatedScenarioResult {
 function makeTable(node: ScenarioTableNode, index: number): RestaurantTable {
   return {
     ...node,
-    assignedPartyId: node.status === 'Occupied' || node.status === 'Paying' ? `MOCK-${node.id}` : null,
+    assignedPartyId: node.status === 'Occupied' || node.status === 'Paying' ? `SCEN-${node.id}` : null,
     assignedPartyName: node.status === 'Occupied' || node.status === 'Paying' ? 'Seated Guests' : null,
     assignedPartySize: node.status === 'Occupied' || node.status === 'Paying' ? node.capacity : null,
     gridCol: (index % 5) + 1,

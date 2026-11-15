@@ -1,14 +1,6 @@
 import 'dotenv/config';
 import express, { type Express } from 'express';
 import {
-  INITIAL_INGREDIENTS,
-  INITIAL_QUEUE,
-  INITIAL_RESERVATIONS,
-  INITIAL_TABLES,
-  INITIAL_WAITERS,
-  MENU_DISHES,
-} from './engine/data';
-import {
   runAStarAllocation,
   stepMultiAgentSimulation,
 } from './engine/aiEngine';
@@ -18,14 +10,14 @@ import {
 } from './engine/workflows';
 import {
   buildGroqKnowledgeContext,
-  evaluateGroundedMaitreD,
   HALLUCINATION_REFUSAL_TEXT,
-  isExplicitOutOfScopeQuery,
 } from './engine/ragGrounding';
 import {
+  cancelReservationInDb,
   checkDbHealth,
   ensureSchemaAndSeed,
   fetchFullFloorSnapshot,
+  InsufficientStockError,
   persistBookingTransaction,
   persistGuestArrivalTransaction,
   persistIngredientStockUpdate,
@@ -34,33 +26,23 @@ import {
   persistSimulationStep,
   persistTableStateUpdate,
   resetNeonFloorToSeed,
-  seedDemoDataInDb,
 } from './db/neon';
 import type {
   AgentEvent,
   AStarWeights,
   BookingValidationRequest,
   CourseStage,
-  IngredientItem,
-  MenuDish,
   OrderIngredientValidationRequest,
   OrderStatus,
-  ReservationRecord,
   RestaurantTable,
   TableStatus,
   WaitingParty,
-  WaiterAgent,
   XaiAuditLog,
 } from './engine/types';
 
 interface MaitreDRequestBody {
   message?: string;
   portal?: 'customer' | 'admin';
-  tables?: RestaurantTable[];
-  queue?: WaitingParty[];
-  waiters?: WaiterAgent[];
-  ingredients?: IngredientItem[];
-  reservations?: ReservationRecord[];
 }
 
 function nowTimeString(): string {
@@ -128,7 +110,7 @@ export function createApiApp(): Express {
     await ensureSchemaAndSeed().catch(() => false);
     const health = await checkDbHealth();
     res.json({
-      ok: true,
+      ok: health.connected,
       service: 'khana-khazana-dual-portal',
       dbConnected: health.connected,
       dbLatencyMs: health.latencyMs,
@@ -159,39 +141,51 @@ export function createApiApp(): Express {
     }
   });
 
-  // Workflow A: Smart Booking Validation, NeonDB Lock & Email Pass Dispatch
+  // Workflow A: Smart Booking Validation, NeonDB Lock & Pass Dispatch
   app.post('/api/bookings/validate', async (req, res) => {
     const t0 = performance.now();
     const body = (req.body ?? {}) as {
       request?: BookingValidationRequest;
-      tables?: RestaurantTable[];
-      reservations?: ReservationRecord[];
     };
-    if (!body.request) {
+    const r = body.request;
+    if (!r) {
       res.status(400).json({ error: 'Invalid booking validation payload.' });
+      return;
+    }
+    if (!r.guestName?.trim() || !r.email?.trim() || !r.phone?.trim() || !r.dateTime?.trim()) {
+      res.status(400).json({
+        error: 'Guest name, email, phone number, and date/time slot are required.',
+      });
+      return;
+    }
+    if (!Number.isFinite(r.partySize) || r.partySize < 1 || r.partySize > 10) {
+      res.status(400).json({ error: 'Party size must be between 1 and 10 guests.' });
+      return;
+    }
+    const parsedSlot = Date.parse(r.dateTime);
+    if (Number.isNaN(parsedSlot)) {
+      res.status(400).json({ error: 'Invalid reservation date and time format.' });
+      return;
+    }
+    if (parsedSlot < Date.now() - 15 * 60_000) {
+      res.status(400).json({
+        error: 'Cannot create a reservation in the past. Please choose an upcoming time slot.',
+      });
       return;
     }
 
     try {
       const snap = await fetchFullFloorSnapshot();
-      const liveTables =
-        snap?.tables ??
-        (Array.isArray(body.tables) && body.tables.length > 0
-          ? body.tables
-          : INITIAL_TABLES);
-      const liveReservations =
-        snap?.reservations ??
-        (Array.isArray(body.reservations)
-          ? body.reservations
-          : INITIAL_RESERVATIONS);
+      if (!snap) {
+        res.status(503).json({ error: 'NeonDB connection unavailable.' });
+        return;
+      }
 
       const result = validateBookingWorkflow(
-        body.request,
-        liveTables,
-        liveReservations,
+        r,
+        snap.tables,
+        snap.reservations,
       );
-
-      let persistedToDb = false;
 
       if (result.fulfillable && result.reservation) {
         const rec = result.reservation;
@@ -203,7 +197,7 @@ export function createApiApp(): Express {
           needsWheelchair: rec.needsWheelchair,
           preferredZone: rec.preferredZone,
           dietaryNotes: rec.specialRequests,
-          waitMins: rec.isVip ? 11 : 2,
+          waitMins: 0,
           status: 'WAITING',
           bookingId: rec.bookingId,
         };
@@ -219,7 +213,7 @@ export function createApiApp(): Express {
           rulesApplied: rec.triggeredRules,
           justification: `Booked ${rec.assignedTableIds.join(
             ' + ',
-          )} (${rec.bookingId}) with email confirmation sent to ${rec.email}.`,
+          )} (${rec.bookingId}) with pass confirmation for ${rec.email}.`,
         };
         const newEvent: AgentEvent = {
           id: `evt-bk-${Date.now()}`,
@@ -235,26 +229,43 @@ export function createApiApp(): Express {
           )} for ${rec.guestName} (${rec.bookingId}) in NeonDB.`,
         };
 
-        if (snap) {
-          await persistBookingTransaction({
-            reservation: rec,
-            party: newParty,
-            xaiLog: newXaiLog,
-            agentEvent: newEvent,
-          });
-          persistedToDb = true;
-        }
+        await persistBookingTransaction({
+          reservation: rec,
+          party: newParty,
+          xaiLog: newXaiLog,
+          agentEvent: newEvent,
+        });
       }
 
       res.json({
         ...result,
-        persistedToDb,
-        responseTimeMs: Math.max(25, Math.round(performance.now() - t0)),
+        persistedToDb: Boolean(result.fulfillable && result.reservation),
+        responseTimeMs: Math.max(1, Math.round(performance.now() - t0)),
       });
     } catch (err) {
       console.error('[/api/bookings/validate] Error:', err);
       res.status(500).json({
         error: err instanceof Error ? err.message : 'Booking validation failed',
+      });
+    }
+  });
+
+  app.post('/api/reservations/:bookingId/cancel', async (req, res) => {
+    try {
+      const snap = await fetchFullFloorSnapshot();
+      if (!snap) {
+        res.status(503).json({ error: 'NeonDB connection unavailable.' });
+        return;
+      }
+      const outcome = await cancelReservationInDb(req.params.bookingId);
+      if (!outcome.ok) {
+        res.status(404).json({ error: 'Active reservation not found.' });
+        return;
+      }
+      res.json({ ok: true, reservation: outcome.reservation });
+    } catch (err) {
+      res.status(500).json({
+        error: err instanceof Error ? err.message : 'Failed to cancel reservation',
       });
     }
   });
@@ -285,7 +296,7 @@ export function createApiApp(): Express {
           p.status === 'WAITING',
       );
       const matchedRes = snap.reservations.find(
-        (r) => r.bookingId === idOrBooking,
+        (r) => r.bookingId === idOrBooking && r.status !== 'CANCELLED',
       );
 
       const targetParty: WaitingParty | null =
@@ -306,7 +317,7 @@ export function createApiApp(): Express {
           : null);
 
       if (!targetParty) {
-        res.status(404).json({ error: 'Party or reservation not found.' });
+        res.status(404).json({ error: 'Waiting party or reservation not found.' });
         return;
       }
 
@@ -321,7 +332,7 @@ export function createApiApp(): Express {
         body.weights,
       );
       const ts = nowTimeString();
-      const responseTimeMs = Math.max(25, Math.round(performance.now() - t0));
+      const responseTimeMs = Math.max(1, Math.round(performance.now() - t0));
 
       const xaiLog: XaiAuditLog = {
         id: `xai-arr-${Date.now()}`,
@@ -386,43 +397,56 @@ export function createApiApp(): Express {
     const t0 = performance.now();
     const body = (req.body ?? {}) as {
       request?: OrderIngredientValidationRequest;
-      menuDishes?: MenuDish[];
-      ingredients?: IngredientItem[];
     };
-    if (!body.request) {
-      res.status(400).json({ error: 'Invalid order inventory payload.' });
+    const orderReq = body.request;
+    if (!orderReq || !Array.isArray(orderReq.items) || orderReq.items.length === 0) {
+      res.status(400).json({ error: 'At least one menu item is required to place an order.' });
       return;
     }
 
     try {
       const snap = await fetchFullFloorSnapshot();
-      const liveDishes =
-        snap?.menuDishes && snap.menuDishes.length > 0
-          ? snap.menuDishes
-          : Array.isArray(body.menuDishes) && body.menuDishes.length > 0
-          ? body.menuDishes
-          : MENU_DISHES;
-      const liveIngredients =
-        snap?.ingredients ??
-        (Array.isArray(body.ingredients) && body.ingredients.length > 0
-          ? body.ingredients
-          : INITIAL_INGREDIENTS);
+      if (!snap) {
+        res.status(503).json({ error: 'NeonDB connection unavailable.' });
+        return;
+      }
+
+      const tbl = snap.tables.find((t) => t.id === orderReq.tableId);
+      if (!tbl) {
+        res.status(404).json({ error: `Table ${orderReq.tableId} does not exist.` });
+        return;
+      }
 
       const result = validateOrderIngredientsWorkflow(
-        body.request,
-        liveDishes,
-        liveIngredients,
+        orderReq,
+        snap.menuDishes,
+        snap.ingredients,
       );
 
-      if (result.ok && result.order && result.updatedIngredients && snap) {
-        const tbl = snap.tables.find((t) => t.id === body.request!.tableId);
+      if (result.ok && result.order) {
+        const dishById = new Map(snap.menuDishes.map((d) => [d.id, d]));
+        const deductionMap = new Map<string, number>();
+        for (const item of orderReq.items) {
+          const dish = dishById.get(item.dishId);
+          if (!dish || item.quantity <= 0) continue;
+          for (const r of dish.recipe) {
+            deductionMap.set(
+              r.ingredientId,
+              (deductionMap.get(r.ingredientId) ?? 0) + r.amount * item.quantity,
+            );
+          }
+        }
+        const deductions = Array.from(deductionMap.entries()).map(
+          ([ingredientId, amount]) => ({ ingredientId, amount }),
+        );
+
         const matchingWaiter =
           snap.waiters.find(
-            (w) => w.role === 'Waiter (Utility-Based)' && w.zone === tbl?.zone,
+            (w) => w.role === 'Waiter (Utility-Based)' && w.zone === tbl.zone,
           ) ?? snap.waiters[0];
 
         result.order.dispatchedAgentId = matchingWaiter?.id ?? 'W1';
-        const responseTimeMs = Math.max(25, Math.round(performance.now() - t0));
+        const responseTimeMs = Math.max(1, Math.round(performance.now() - t0));
 
         const agentEvent: AgentEvent = {
           id: `evt-ord-${Date.now()}`,
@@ -432,32 +456,54 @@ export function createApiApp(): Express {
           agentName: matchingWaiter?.name ?? 'W1 · Arjun',
           agentType: 'Waiter (Utility-Based)',
           utilityScore: 0.95,
-          targetTableId: body.request.tableId,
+          targetTableId: orderReq.tableId,
           message: `QR Order ${result.order.orderId} committed atomically in NeonDB (${responseTimeMs}ms) → Dispatched to ${
             matchingWaiter?.name ?? 'Waiter'
-          } for ${body.request.tableId}.`,
+          } for ${orderReq.tableId}.`,
         };
 
-        await persistOrderAndInventoryTransaction({
-          order: result.order,
-          updatedIngredients: result.updatedIngredients,
-          waiterId: matchingWaiter?.id ?? 'W1',
-          agentEvent,
-        });
+        try {
+          const persistedIngredients = await persistOrderAndInventoryTransaction({
+            order: result.order,
+            deductions,
+            waiterId: matchingWaiter?.id ?? 'W1',
+            agentEvent,
+          });
 
-        res.json({
-          ...result,
-          persistedToDb: true,
-          responseTimeMs,
-          agentEvent,
-        });
-        return;
+          res.json({
+            ...result,
+            updatedIngredients: persistedIngredients,
+            persistedToDb: true,
+            responseTimeMs,
+            agentEvent,
+          });
+          return;
+        } catch (txErr) {
+          if (txErr instanceof InsufficientStockError) {
+            const latestSnap = await fetchFullFloorSnapshot();
+            const retryResult = latestSnap
+              ? validateOrderIngredientsWorkflow(
+                  orderReq,
+                  latestSnap.menuDishes,
+                  latestSnap.ingredients,
+                )
+              : result;
+            res.status(409).json({
+              ...retryResult,
+              ok: false,
+              persistedToDb: false,
+              responseTimeMs: Math.max(1, Math.round(performance.now() - t0)),
+            });
+            return;
+          }
+          throw txErr;
+        }
       }
 
       res.json({
         ...result,
         persistedToDb: false,
-        responseTimeMs: Math.max(20, Math.round(performance.now() - t0)),
+        responseTimeMs: Math.max(1, Math.round(performance.now() - t0)),
       });
     } catch (err) {
       console.error('[/api/orders/validate-ingredients] Error:', err);
@@ -470,7 +516,11 @@ export function createApiApp(): Express {
   app.patch('/api/orders/:orderId/advance', async (req, res) => {
     try {
       const snap = await fetchFullFloorSnapshot();
-      const target = snap?.orders.find((o) => o.orderId === req.params.orderId);
+      if (!snap) {
+        res.status(503).json({ error: 'NeonDB connection unavailable.' });
+        return;
+      }
+      const target = snap.orders.find((o) => o.orderId === req.params.orderId);
       if (!target) {
         res.status(404).json({ error: 'Order not found.' });
         return;
@@ -480,7 +530,7 @@ export function createApiApp(): Express {
           ? 'Preparing'
           : target.status === 'Preparing'
           ? 'Waiter En Route'
-          : 'Waiter En Route';
+          : 'Served';
       const updated = await persistOrderStatusAdvance(
         req.params.orderId,
         nextStatus,
@@ -527,7 +577,11 @@ export function createApiApp(): Express {
     }
     try {
       const snap = await fetchFullFloorSnapshot();
-      const current = snap?.tables.find((t) => t.id === req.params.id);
+      if (!snap) {
+        res.status(503).json({ error: 'NeonDB connection unavailable.' });
+        return;
+      }
+      const current = snap.tables.find((t) => t.id === req.params.id);
       if (!current) {
         res.status(404).json({ error: 'Table not found.' });
         return;
@@ -604,26 +658,6 @@ export function createApiApp(): Express {
     }
   });
 
-  app.post('/api/floor/seed-demo', async (_req, res) => {
-    try {
-      const seedRes = await seedDemoDataInDb();
-      if (!seedRes.ok) {
-        res.status(503).json({ error: 'NeonDB connection unavailable.' });
-        return;
-      }
-      const snap = await fetchFullFloorSnapshot();
-      res.json({
-        ok: true,
-        insertedCounts: seedRes.insertedCounts,
-        snapshot: snap,
-      });
-    } catch (err) {
-      res.status(500).json({
-        error: err instanceof Error ? err.message : 'Demo data seed failed',
-      });
-    }
-  });
-
   // Standalone A* Allocation endpoint
   app.post('/api/ai/allocate-table', (req, res) => {
     const body = (req.body ?? {}) as {
@@ -645,82 +679,62 @@ export function createApiApp(): Express {
     res.json({ result });
   });
 
-  // Grounded Groq Cloud API (openai/gpt-oss-120b) + Deterministic RAG Fallback
+  // Grounded Groq Cloud API (openai/gpt-oss-120b) strictly live
   async function handleGroundedAssistantRequest(
     body: MaitreDRequestBody,
-  ): Promise<{
-    reply: string;
-    sources: string[];
-    refusalTriggered: boolean;
-    grounded: boolean;
-    latencyMs: number;
-    model: string;
-    provider: 'groq' | 'grounded-simulator';
-  }> {
+  ): Promise<
+    | {
+        ok: true;
+        reply: string;
+        sources: string[];
+        refusalTriggered: boolean;
+        grounded: boolean;
+        latencyMs: number;
+        model: string;
+        provider: 'groq';
+      }
+    | { ok: false; status: number; error: string }
+  > {
     const t0 = performance.now();
     const userMessage =
       typeof body.message === 'string' ? body.message.trim() : '';
     const portal = body.portal === 'customer' ? 'customer' : 'admin';
 
-    const snap = await fetchFullFloorSnapshot().catch(() => null);
-    const tables =
-      snap?.tables ??
-      (Array.isArray(body.tables) && body.tables.length > 0
-        ? body.tables
-        : INITIAL_TABLES);
-    const queue =
-      snap?.queue ??
-      (Array.isArray(body.queue) && body.queue.length > 0
-        ? body.queue
-        : INITIAL_QUEUE);
-    const waiters =
-      snap?.waiters ??
-      (Array.isArray(body.waiters) && body.waiters.length > 0
-        ? body.waiters
-        : INITIAL_WAITERS);
-    const ingredients =
-      snap?.ingredients ??
-      (Array.isArray(body.ingredients) && body.ingredients.length > 0
-        ? body.ingredients
-        : INITIAL_INGREDIENTS);
-    const reservations =
-      snap?.reservations ??
-      (Array.isArray(body.reservations) && body.reservations.length > 0
-        ? body.reservations
-        : INITIAL_RESERVATIONS);
-
-    // Fast guardrail short-circuit ONLY for explicit out-of-scope traps
-    if (isExplicitOutOfScopeQuery(userMessage)) {
+    const groqApiKey = (process.env.GROQ_API_KEY ?? '').trim();
+    if (!isGroqConfigured()) {
       return {
-        reply: HALLUCINATION_REFUSAL_TEXT,
-        sources: ['[restaurant_policies.md]', '[live_floor_db]'],
-        refusalTriggered: true,
-        grounded: true,
-        latencyMs: Math.max(12, Math.round(performance.now() - t0)),
-        model: 'openai/gpt-oss-120b',
-        provider: isGroqConfigured() ? 'groq' : 'grounded-simulator',
+        ok: false,
+        status: 503,
+        error: 'GROQ_API_KEY is not configured on the server.',
       };
     }
 
-    const groqApiKey = (process.env.GROQ_API_KEY ?? '').trim();
-    if (isGroqConfigured()) {
-      try {
-        const ragContext = buildGroqKnowledgeContext({
-          portal,
-          tables,
-          queue,
-          waiters,
-          ingredients,
-          reservations,
-        });
+    const snap = await fetchFullFloorSnapshot().catch(() => null);
+    if (!snap) {
+      return {
+        ok: false,
+        status: 503,
+        error: 'NeonDB connection unavailable for grounded assistant context.',
+      };
+    }
 
-        const systemPrompt = `You are the Grounded AI ${
-          portal === 'customer' ? 'Concierge' : "Maître D'"
-        } for Khana-Khazana ("Where Culinary Heritage Meets Autonomous Intelligence").
+    const ragContext = buildGroqKnowledgeContext({
+      portal,
+      tables: snap.tables,
+      queue: snap.queue,
+      waiters: snap.waiters,
+      ingredients: snap.ingredients,
+      reservations: snap.reservations,
+      menuDishes: snap.menuDishes,
+    });
+
+    const systemPrompt = `You are the Grounded AI ${
+      portal === 'customer' ? 'Concierge' : "Maître D'"
+    } for Khana-Khazana ("Where Culinary Heritage Meets Autonomous Intelligence").
 INSTRUCTIONS:
 1. If the user greets you or asks who you are / what you can help with (e.g. "hi", "hello", "who are you"), warmly introduce yourself as the Khana-Khazana AI ${
-          portal === 'customer' ? 'Concierge' : "Maître D'"
-        } powered by Groq (openai/gpt-oss-120b), mention our operating hours (11:30 AM – 11:30 PM), dining zones (Window, Main Hall, VIP Lounge), and invite questions about live tables, wheelchair accessibility (T3+T4), allergens, or live kitchen stock. Set "refusalTriggered": false.
+      portal === 'customer' ? 'Concierge' : "Maître D'"
+    } powered by Groq (openai/gpt-oss-120b), mention our operating hours (11:30 AM – 11:30 PM), dining zones (Window, Main Hall, VIP Lounge), and invite questions about live tables, wheelchair accessibility (T3+T4), allergens, or live kitchen stock. Set "refusalTriggered": false.
 2. Answer restaurant questions concisely (2-3 clear sentences) and politely using ONLY the injected Restaurant Knowledge Base and Live Floor & Kitchen State below. Cite exact table IDs (T1-T10), dish prices/allergens, or live gram/unit ingredient stock counts whenever relevant.
 3. If asked about ANYTHING outside Khana-Khazana or unverified in the context below (e.g., rooftop pool, spa, hotel rooms, weather, stock market, general trivia), reply strictly verbatim with:
 "${HALLUCINATION_REFUSAL_TEXT}" and set "refusalTriggered": true.
@@ -728,94 +742,93 @@ INSTRUCTIONS:
 
 ${ragContext}`;
 
-        const controller = new AbortController();
-        const timeoutHandle = setTimeout(() => controller.abort(), 9000);
+    try {
+      const controller = new AbortController();
+      const timeoutHandle = setTimeout(() => controller.abort(), 12000);
 
-        const groqResp = await fetch(
-          'https://api.groq.com/openai/v1/chat/completions',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${groqApiKey}`,
-            },
-            body: JSON.stringify({
-              model: 'openai/gpt-oss-120b',
-              temperature: 0.1,
-              response_format: { type: 'json_object' },
-              messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: userMessage },
-              ],
-            }),
-            signal: controller.signal,
+      const groqResp = await fetch(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${groqApiKey}`,
           },
-        ).finally(() => clearTimeout(timeoutHandle));
+          body: JSON.stringify({
+            model: 'openai/gpt-oss-120b',
+            temperature: 0.1,
+            response_format: { type: 'json_object' },
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userMessage },
+            ],
+          }),
+          signal: controller.signal,
+        },
+      ).finally(() => clearTimeout(timeoutHandle));
 
-        if (!groqResp.ok) {
-          const errText = await groqResp.text().catch(() => '');
-          throw new Error(`Groq HTTP ${groqResp.status}: ${errText.slice(0, 120)}`);
-        }
-
-        const completion = (await groqResp.json()) as {
-          choices?: Array<{ message?: { content?: string } }>;
+      if (!groqResp.ok) {
+        const errText = await groqResp.text().catch(() => '');
+        return {
+          ok: false,
+          status: 502,
+          error: `Groq API returned HTTP ${groqResp.status}${
+            errText ? `: ${errText.slice(0, 140)}` : ''
+          }`,
         };
-        const rawContent = completion.choices?.[0]?.message?.content?.trim() ?? '';
-        const parsed = parseGroqJsonContent(rawContent);
-
-        if (parsed?.reply && typeof parsed.reply === 'string') {
-          const isRefusal =
-            Boolean(parsed.refusalTriggered) ||
-            parsed.reply.trim() === HALLUCINATION_REFUSAL_TEXT;
-          return {
-            reply: isRefusal ? HALLUCINATION_REFUSAL_TEXT : parsed.reply.trim(),
-            sources:
-              Array.isArray(parsed.sources) && parsed.sources.length > 0
-                ? parsed.sources
-                : ['[restaurant_policies.md]', '[live_floor_db]'],
-            refusalTriggered: isRefusal,
-            grounded: true,
-            latencyMs: Math.max(25, Math.round(performance.now() - t0)),
-            model: 'openai/gpt-oss-120b',
-            provider: 'groq',
-          };
-        }
-
-        if (rawContent) {
-          const isRefusal = rawContent === HALLUCINATION_REFUSAL_TEXT;
-          return {
-            reply: rawContent,
-            sources: ['[restaurant_policies.md]', '[live_floor_db]'],
-            refusalTriggered: isRefusal,
-            grounded: true,
-            latencyMs: Math.max(25, Math.round(performance.now() - t0)),
-            model: 'openai/gpt-oss-120b',
-            provider: 'groq',
-          };
-        }
-      } catch (err) {
-        console.warn('Groq inference failed, falling back to deterministic RAG:', err);
       }
+
+      const completion = (await groqResp.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const rawContent = completion.choices?.[0]?.message?.content?.trim() ?? '';
+      const parsed = parseGroqJsonContent(rawContent);
+
+      if (parsed?.reply && typeof parsed.reply === 'string') {
+        const isRefusal =
+          Boolean(parsed.refusalTriggered) ||
+          parsed.reply.trim() === HALLUCINATION_REFUSAL_TEXT;
+        return {
+          ok: true,
+          reply: isRefusal ? HALLUCINATION_REFUSAL_TEXT : parsed.reply.trim(),
+          sources:
+            Array.isArray(parsed.sources) && parsed.sources.length > 0
+              ? parsed.sources
+              : ['[restaurant_policies.md]', '[live_floor_db]'],
+          refusalTriggered: isRefusal,
+          grounded: true,
+          latencyMs: Math.max(1, Math.round(performance.now() - t0)),
+          model: 'openai/gpt-oss-120b',
+          provider: 'groq',
+        };
+      }
+
+      if (rawContent) {
+        const isRefusal = rawContent === HALLUCINATION_REFUSAL_TEXT;
+        return {
+          ok: true,
+          reply: rawContent,
+          sources: ['[restaurant_policies.md]', '[live_floor_db]'],
+          refusalTriggered: isRefusal,
+          grounded: true,
+          latencyMs: Math.max(1, Math.round(performance.now() - t0)),
+          model: 'openai/gpt-oss-120b',
+          provider: 'groq',
+        };
+      }
+
+      return {
+        ok: false,
+        status: 502,
+        error: 'Groq API returned an empty response.',
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        status: 502,
+        error: err instanceof Error ? err.message : 'Groq API request failed.',
+      };
     }
-
-    const deterministicCheck = evaluateGroundedMaitreD(
-      userMessage,
-      tables,
-      queue,
-      waiters,
-      ingredients,
-      reservations,
-    );
-
-    return {
-      reply: deterministicCheck.reply,
-      sources: deterministicCheck.sources,
-      refusalTriggered: deterministicCheck.refusalTriggered,
-      grounded: true,
-      latencyMs: Math.max(18, Math.round(performance.now() - t0)),
-      model: 'openai/gpt-oss-120b',
-      provider: 'grounded-simulator',
-    };
   }
 
   app.post('/api/groq/chat', async (req, res) => {
@@ -825,6 +838,10 @@ ${ragContext}`;
       return;
     }
     const result = await handleGroundedAssistantRequest(body);
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
     res.json(result);
   });
 
@@ -835,6 +852,10 @@ ${ragContext}`;
       return;
     }
     const result = await handleGroundedAssistantRequest(body);
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
     res.json(result);
   });
 

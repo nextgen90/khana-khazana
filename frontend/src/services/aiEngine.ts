@@ -4,12 +4,13 @@
  * Connects Customer Booking (/book), QR Menu (/table/:tableId/menu),
  * Admin Floor Command (/admin/dashboard), Search & ML Lab (/admin/algorithms),
  * Multi-Agent Dispatch (/admin/agents), and Grounded Groq Concierge (/concierge & /admin/assistant)
- * to our backend API with seamless deterministic local execution fallbacks.
+ * to our NeonDB & Groq backend API.
  */
 
 export {
   advanceOrderStatusApi,
   allocateTableViaAStar,
+  cancelReservationApi,
   checkInGuestViaApi,
   fetchFloorStateFromApi,
   queryMaitreDRag,

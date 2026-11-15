@@ -1,17 +1,11 @@
 import { Pool, type PoolClient } from 'pg';
 import { SCHEMA_SQL } from './schemaSql';
 import {
-  INITIAL_AGENT_EVENTS,
   INITIAL_INGREDIENTS,
-  INITIAL_ORDERS,
-  INITIAL_QUEUE,
-  INITIAL_RESERVATIONS,
   INITIAL_TABLES,
   INITIAL_WAITERS,
-  INITIAL_XAI_LOGS,
   MENU_DISHES,
 } from '../engine/data';
-import { insertDemoData } from './demoSeed';
 import type {
   AgentEvent,
   CourseStage,
@@ -26,6 +20,15 @@ import type {
   WaitingParty,
   XaiAuditLog,
 } from '../engine/types';
+
+export class InsufficientStockError extends Error {
+  ingredientId: string;
+  constructor(ingredientId: string) {
+    super(`Insufficient stock for ingredient ${ingredientId}`);
+    this.name = 'InsufficientStockError';
+    this.ingredientId = ingredientId;
+  }
+}
 
 let pool: Pool | null = null;
 let schemaReadyPromise: Promise<boolean> | null = null;
@@ -69,6 +72,65 @@ export async function withTransaction<T>(
   }
 }
 
+async function syncCatalogData(client: PoolClient): Promise<void> {
+  for (const ing of INITIAL_INGREDIENTS) {
+    await client.query(
+      `INSERT INTO ingredients (
+        id, name, unit, stock, par_level, per_order_highlight
+      ) VALUES ($1,$2,$3,$4,$5,$6)
+      ON CONFLICT (id) DO NOTHING`,
+      [
+        ing.id,
+        ing.name,
+        ing.unit,
+        ing.stock,
+        ing.parLevel,
+        ing.perOrderHighlight,
+      ],
+    );
+  }
+
+  const dishIds = MENU_DISHES.map((d) => d.id);
+  if (dishIds.length > 0) {
+    await client.query(`DELETE FROM menu_dishes WHERE NOT (id = ANY($1::text[]))`, [
+      dishIds,
+    ]);
+  }
+
+  for (const dish of MENU_DISHES) {
+    await client.query(
+      `INSERT INTO menu_dishes (
+        id, name, category, description, price, prep_mins,
+        dietary_tags, is_veg, image, recipe, substitute_dish_ids
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10::jsonb,$11::jsonb)
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        category = EXCLUDED.category,
+        description = EXCLUDED.description,
+        price = EXCLUDED.price,
+        prep_mins = EXCLUDED.prep_mins,
+        dietary_tags = EXCLUDED.dietary_tags,
+        is_veg = EXCLUDED.is_veg,
+        image = EXCLUDED.image,
+        recipe = EXCLUDED.recipe,
+        substitute_dish_ids = EXCLUDED.substitute_dish_ids`,
+      [
+        dish.id,
+        dish.name,
+        dish.category,
+        dish.description,
+        dish.price,
+        dish.prepMins,
+        JSON.stringify(dish.dietaryTags),
+        dish.isVeg,
+        dish.image,
+        JSON.stringify(dish.recipe),
+        JSON.stringify(dish.substituteDishIds),
+      ],
+    );
+  }
+}
+
 async function seedInitialData(client: PoolClient): Promise<void> {
   for (const t of INITIAL_TABLES) {
     await client.query(
@@ -99,119 +161,7 @@ async function seedInitialData(client: PoolClient): Promise<void> {
     );
   }
 
-  for (const p of INITIAL_QUEUE) {
-    await client.query(
-      `INSERT INTO waiting_queue (
-        id, name, size, is_vip, needs_wheelchair, preferred_zone,
-        dietary_notes, wait_mins, status, booking_id
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-      ON CONFLICT (id) DO NOTHING`,
-      [
-        p.id,
-        p.name,
-        p.size,
-        p.isVip,
-        p.needsWheelchair,
-        p.preferredZone,
-        p.dietaryNotes ?? '',
-        p.waitMins,
-        p.status,
-        p.bookingId ?? null,
-      ],
-    );
-  }
-
-  for (const r of INITIAL_RESERVATIONS) {
-    await client.query(
-      `INSERT INTO reservations (
-        booking_id, guest_name, email, phone, date_time, party_size,
-        preferred_zone, needs_wheelchair, is_vip, special_requests, status,
-        assigned_table_ids, qr_pass_code, triggered_rules,
-        bayesian_confidence_pct, f_score, created_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14::jsonb,$15,$16,$17)
-      ON CONFLICT (booking_id) DO NOTHING`,
-      [
-        r.bookingId,
-        r.guestName,
-        r.email,
-        r.phone,
-        r.dateTime,
-        r.partySize,
-        r.preferredZone,
-        r.needsWheelchair,
-        r.isVip,
-        r.specialRequests,
-        r.status,
-        JSON.stringify(r.assignedTableIds),
-        r.qrPassCode,
-        JSON.stringify(r.triggeredRules),
-        r.bayesianConfidencePct,
-        r.fScore,
-        r.createdAt,
-      ],
-    );
-  }
-
-  for (const ing of INITIAL_INGREDIENTS) {
-    await client.query(
-      `INSERT INTO ingredients (
-        id, name, unit, stock, par_level, per_order_highlight
-      ) VALUES ($1,$2,$3,$4,$5,$6)
-      ON CONFLICT (id) DO NOTHING`,
-      [
-        ing.id,
-        ing.name,
-        ing.unit,
-        ing.stock,
-        ing.parLevel,
-        ing.perOrderHighlight,
-      ],
-    );
-  }
-
-  for (const dish of MENU_DISHES) {
-    await client.query(
-      `INSERT INTO menu_dishes (
-        id, name, category, description, price, prep_mins,
-        dietary_tags, is_veg, image, recipe, substitute_dish_ids
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10::jsonb,$11::jsonb)
-      ON CONFLICT (id) DO UPDATE SET image = EXCLUDED.image`,
-      [
-        dish.id,
-        dish.name,
-        dish.category,
-        dish.description,
-        dish.price,
-        dish.prepMins,
-        JSON.stringify(dish.dietaryTags),
-        dish.isVeg,
-        dish.image,
-        JSON.stringify(dish.recipe),
-        JSON.stringify(dish.substituteDishIds),
-      ],
-    );
-  }
-
-  for (const ord of INITIAL_ORDERS) {
-    await client.query(
-      `INSERT INTO kitchen_orders (
-        order_id, table_id, booking_id, items, total_amount,
-        prep_time_mins, status, dispatched_agent_id, created_at
-      ) VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9)
-      ON CONFLICT (order_id) DO NOTHING`,
-      [
-        ord.orderId,
-        ord.tableId,
-        ord.bookingId,
-        JSON.stringify(ord.items),
-        ord.totalAmount,
-        ord.prepTimeMins,
-        ord.status,
-        ord.dispatchedAgentId,
-        ord.createdAt,
-      ],
-    );
-  }
+  await syncCatalogData(client);
 
   for (const w of INITIAL_WAITERS) {
     await client.query(
@@ -234,51 +184,6 @@ async function seedInitialData(client: PoolClient): Promise<void> {
       ],
     );
   }
-
-  for (const evt of INITIAL_AGENT_EVENTS) {
-    await client.query(
-      `INSERT INTO agent_events (
-        id, tick, timestamp, agent_id, agent_name, agent_type,
-        utility_score, target_table_id, message
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-      ON CONFLICT (id) DO NOTHING`,
-      [
-        evt.id,
-        evt.tick,
-        evt.timestamp,
-        evt.agentId,
-        evt.agentName,
-        evt.agentType,
-        evt.utilityScore,
-        evt.targetTableId,
-        evt.message,
-      ],
-    );
-  }
-
-  for (const log of INITIAL_XAI_LOGS) {
-    await client.query(
-      `INSERT INTO xai_audit_logs (
-        id, timestamp, party_name, party_size, assigned_tables,
-        algorithm, f_score, bayesian_prob, rules_applied, justification
-      ) VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9::jsonb,$10)
-      ON CONFLICT (id) DO NOTHING`,
-      [
-        log.id,
-        log.timestamp,
-        log.partyName,
-        log.partySize,
-        JSON.stringify(log.assignedTables),
-        log.algorithm,
-        log.fScore,
-        log.bayesianProb,
-        JSON.stringify(log.rulesApplied),
-        log.justification,
-      ],
-    );
-  }
-
-  await insertDemoData(client);
 }
 
 export async function ensureSchemaAndSeed(): Promise<boolean> {
@@ -298,13 +203,7 @@ export async function ensureSchemaAndSeed(): Promise<boolean> {
         if (count === 0) {
           await seedInitialData(client);
         } else {
-          // Ensure menu dishes stay synced
-          const { rows: dishRows } = await client.query<{ count: string }>(
-            'SELECT COUNT(*)::text AS count FROM menu_dishes',
-          );
-          if (Number(dishRows[0]?.count ?? '0') === 0) {
-            await seedInitialData(client);
-          }
+          await syncCatalogData(client);
         }
       });
       return true;
@@ -762,16 +661,23 @@ export async function persistGuestArrivalTransaction(params: {
 
 export async function persistOrderAndInventoryTransaction(params: {
   order: KitchenOrder;
-  updatedIngredients: IngredientItem[];
+  deductions: Array<{ ingredientId: string; amount: number }>;
   waiterId: string;
   agentEvent: AgentEvent;
-}): Promise<void> {
-  await withTransaction(async (client) => {
-    for (const ing of params.updatedIngredients) {
-      await client.query(
-        `UPDATE ingredients SET stock = $2, updated_at = NOW() WHERE id = $1`,
-        [ing.id, ing.stock],
+}): Promise<IngredientItem[]> {
+  return withTransaction(async (client) => {
+    for (const d of params.deductions) {
+      if (d.amount <= 0) continue;
+      const upd = await client.query(
+        `UPDATE ingredients
+         SET stock = stock - $2, updated_at = NOW()
+         WHERE id = $1 AND stock >= $2
+         RETURNING *`,
+        [d.ingredientId, d.amount],
       );
+      if (upd.rowCount === 0) {
+        throw new InsufficientStockError(d.ingredientId);
+      }
     }
 
     const o = params.order;
@@ -820,6 +726,11 @@ export async function persistOrderAndInventoryTransaction(params: {
         e.message,
       ],
     );
+
+    const { rows } = await client.query(
+      `SELECT * FROM ingredients ORDER BY id ASC`,
+    );
+    return rows.map(mapIngredientRow);
   });
 }
 
@@ -833,26 +744,45 @@ export async function persistTableStateUpdate(params: {
   const db = getDbPool();
   if (!db) return null;
 
-  const { rows } = await db.query(
-    `UPDATE restaurant_tables
-     SET status = $2,
-         current_course = $3,
-         elapsed_mins = $4,
-         assigned_party_id = CASE WHEN $5 THEN NULL ELSE assigned_party_id END,
-         assigned_party_name = CASE WHEN $5 THEN NULL ELSE assigned_party_name END,
-         assigned_party_size = CASE WHEN $5 THEN NULL ELSE assigned_party_size END,
-         updated_at = NOW()
-     WHERE id = $1
-     RETURNING *`,
-    [
-      params.tableId,
-      params.status,
-      params.currentCourse,
-      params.elapsedMins,
-      params.clearParty,
-    ],
-  );
-  return rows[0] ? mapTableRow(rows[0]) : null;
+  return withTransaction(async (client) => {
+    const prevRes = await client.query<{ active_booking_id: string | null }>(
+      `SELECT active_booking_id FROM restaurant_tables WHERE id = $1`,
+      [params.tableId],
+    );
+    const prevBookingId = prevRes.rows[0]?.active_booking_id ?? null;
+
+    const { rows } = await client.query(
+      `UPDATE restaurant_tables
+       SET status = $2,
+           current_course = $3,
+           elapsed_mins = $4,
+           assigned_party_id = CASE WHEN $5 THEN NULL ELSE assigned_party_id END,
+           assigned_party_name = CASE WHEN $5 THEN NULL ELSE assigned_party_name END,
+           assigned_party_size = CASE WHEN $5 THEN NULL ELSE assigned_party_size END,
+           active_booking_id = CASE WHEN $5 THEN NULL ELSE active_booking_id END,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [
+        params.tableId,
+        params.status,
+        params.currentCourse,
+        params.elapsedMins,
+        params.clearParty,
+      ],
+    );
+
+    if (params.clearParty && prevBookingId && prevBookingId !== 'WALKIN') {
+      await client.query(
+        `UPDATE reservations
+         SET status = 'COMPLETED'
+         WHERE booking_id = $1 AND status = 'SEATED'`,
+        [prevBookingId],
+      );
+    }
+
+    return rows[0] ? mapTableRow(rows[0]) : null;
+  });
 }
 
 export async function persistIngredientStockUpdate(
@@ -889,6 +819,12 @@ export async function persistSimulationStep(params: {
 }): Promise<void> {
   await withTransaction(async (client) => {
     for (const t of params.tables) {
+      const prevRes = await client.query<{ active_booking_id: string | null }>(
+        `SELECT active_booking_id FROM restaurant_tables WHERE id = $1`,
+        [t.id],
+      );
+      const prevBookingId = prevRes.rows[0]?.active_booking_id ?? null;
+
       await client.query(
         `UPDATE restaurant_tables
          SET status = $2,
@@ -897,6 +833,7 @@ export async function persistSimulationStep(params: {
              assigned_party_id = $5,
              assigned_party_name = $6,
              assigned_party_size = $7,
+             active_booking_id = $8,
              updated_at = NOW()
          WHERE id = $1`,
         [
@@ -907,8 +844,22 @@ export async function persistSimulationStep(params: {
           t.assignedPartyId,
           t.assignedPartyName,
           t.assignedPartySize,
+          t.activeBookingId ?? null,
         ],
       );
+
+      if (
+        (t.status === 'Free' || t.status === 'Dirty') &&
+        prevBookingId &&
+        prevBookingId !== 'WALKIN'
+      ) {
+        await client.query(
+          `UPDATE reservations
+           SET status = 'COMPLETED'
+           WHERE booking_id = $1 AND status = 'SEATED'`,
+          [prevBookingId],
+        );
+      }
     }
 
     for (const p of params.queue) {
@@ -945,6 +896,7 @@ export async function persistSimulationStep(params: {
        SET status = CASE
          WHEN status = 'Order Received' THEN 'Preparing'
          WHEN status = 'Preparing' THEN 'Waiter En Route'
+         WHEN status = 'Waiter En Route' THEN 'Served'
          ELSE status
        END`,
     );
@@ -972,6 +924,41 @@ export async function persistSimulationStep(params: {
   });
 }
 
+export async function cancelReservationInDb(
+  bookingId: string,
+): Promise<{ ok: boolean; reservation?: ReservationRecord }> {
+  return withTransaction(async (client) => {
+    const { rows } = await client.query(
+      `UPDATE reservations
+       SET status = 'CANCELLED'
+       WHERE booking_id = $1 AND status <> 'CANCELLED'
+       RETURNING *`,
+      [bookingId],
+    );
+    if (rows.length === 0) {
+      return { ok: false };
+    }
+    await client.query(
+      `DELETE FROM waiting_queue WHERE booking_id = $1 AND status = 'WAITING'`,
+      [bookingId],
+    );
+    await client.query(
+      `UPDATE restaurant_tables
+       SET status = 'Free',
+           current_course = 'None',
+           elapsed_mins = 0,
+           assigned_party_id = NULL,
+           assigned_party_name = NULL,
+           assigned_party_size = NULL,
+           active_booking_id = NULL,
+           updated_at = NOW()
+       WHERE active_booking_id = $1`,
+      [bookingId],
+    );
+    return { ok: true, reservation: mapReservationRow(rows[0]) };
+  });
+}
+
 export async function resetNeonFloorToSeed(): Promise<NeonFloorSnapshot | null> {
   const ready = await ensureSchemaAndSeed();
   if (!ready) return null;
@@ -990,18 +977,4 @@ export async function resetNeonFloorToSeed(): Promise<NeonFloorSnapshot | null> 
   });
 
   return fetchFullFloorSnapshot();
-}
-
-export async function seedDemoDataInDb(): Promise<{
-  ok: boolean;
-  insertedCounts: Record<string, number>;
-}> {
-  const ready = await ensureSchemaAndSeed();
-  if (!ready) {
-    return { ok: false, insertedCounts: {} };
-  }
-  const insertedCounts = await withTransaction(async (client) =>
-    insertDemoData(client),
-  );
-  return { ok: true, insertedCounts };
 }

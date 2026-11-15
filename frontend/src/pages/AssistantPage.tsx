@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  AlertCircle,
   CheckCircle2,
   Clock,
   Database,
@@ -13,7 +14,6 @@ import {
 import { useRestaurant } from '../context/RestaurantContext';
 import {
   fetchGroqHealthStatus,
-  HALLUCINATION_REFUSAL_TEXT,
   queryGroqAssistant,
   type GroqHealthStatus,
 } from '../services/aiEngine';
@@ -40,7 +40,7 @@ const TEST_PROMPTS_ADMIN = [
 ];
 
 export function AssistantPage() {
-  const { portalMode, tables, queue, waiters, ingredients, reservations } =
+  const { portalMode, tables, queue, waiters, ingredients, reservations, menuDishes } =
     useRestaurant();
 
   const isCustomer = portalMode === 'customer';
@@ -52,7 +52,7 @@ export function AssistantPage() {
   const [groqHealth, setGroqHealth] = useState<GroqHealthStatus>({
     groqConfigured: false,
     groqModel: 'openai/gpt-oss-120b',
-    dbConnected: true,
+    dbConnected: false,
   });
 
   const [messages, setMessages] = useState<MaitreDMessage[]>([
@@ -63,10 +63,9 @@ export function AssistantPage() {
         ? 'Welcome to Khana-Khazana. I am powered by Groq (openai/gpt-oss-120b) and strictly grounded in our live NeonDB floor availability, kitchen stock, allergen registry, and dining policies.'
         : 'Welcome to Floor Command. The Grounded AI Maître D’ is wired to Groq (openai/gpt-oss-120b) with live T1–T10 NeonDB telemetry, exact pantry gram counts, and restaurant_policies.md.',
       sources: ['[restaurant_policies.md]', '[live_floor_db]'],
-      latencyMs: 24,
       model: 'openai/gpt-oss-120b',
-      provider: 'grounded-simulator',
-      timestamp: 'Live',
+      provider: 'groq',
+      timestamp: 'Ready',
     },
   ]);
 
@@ -113,6 +112,7 @@ export function AssistantPage() {
         waiters,
         ingredients,
         reservations,
+        menuDishes,
       });
 
       setMessages((prev) => [
@@ -129,18 +129,20 @@ export function AssistantPage() {
           timestamp: ts,
         },
       ]);
-    } catch {
+    } catch (err) {
       setMessages((prev) => [
         ...prev,
         {
           id: `err-${Date.now()}`,
           role: 'assistant',
-          content: HALLUCINATION_REFUSAL_TEXT,
-          sources: ['[restaurant_policies.md]', '[live_floor_db]'],
-          refusalTriggered: true,
-          latencyMs: 18,
-          model: 'openai/gpt-oss-120b',
-          provider: 'grounded-simulator',
+          content:
+            err instanceof Error
+              ? err.message
+              : 'Unable to reach Groq Cloud API. Verify GROQ_API_KEY in server environment variables.',
+          sources: [],
+          isError: true,
+          model: groqHealth.groqModel,
+          provider: 'groq',
           timestamp: ts,
         },
       ]);
@@ -358,11 +360,21 @@ export function AssistantPage() {
                 </div>
               </div>
 
-              <div className="inline-flex items-center gap-1.5 border border-[#059669]/40 bg-emerald-50/70 px-2.5 py-1 font-mono text-[11px] font-semibold text-[#047857]">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#059669]" />
+              <div
+                className={`inline-flex items-center gap-1.5 border px-2.5 py-1 font-mono text-[11px] font-semibold ${
+                  groqHealth.groqConfigured
+                    ? 'border-[#059669]/40 bg-emerald-50/70 text-[#047857]'
+                    : 'border-amber-600/40 bg-amber-50/70 text-amber-800'
+                }`}
+              >
+                {groqHealth.groqConfigured ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#059669]" />
+                ) : (
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-700" />
+                )}
                 <span>
                   Groq • {groqHealth.groqModel} •{' '}
-                  {groqHealth.groqConfigured ? 'Live API' : 'Grounded RAG'}
+                  {groqHealth.groqConfigured ? 'Live API' : 'Server Key Not Configured'}
                 </span>
               </div>
             </div>
@@ -375,7 +387,7 @@ export function AssistantPage() {
                   className={`py-4 first:pt-1 ${
                     m.role === 'user'
                       ? 'bg-[#ECE3D3]/45 px-4 border-b border-[#DCD0BE]'
-                      : m.refusalTriggered
+                      : m.isError || m.refusalTriggered
                       ? 'bg-red-50/40 px-4'
                       : 'px-1'
                   }`}
@@ -384,7 +396,7 @@ export function AssistantPage() {
                     <div className="flex items-center gap-2">
                       <span
                         className={`uppercase tracking-wider font-semibold ${
-                          m.refusalTriggered
+                          m.isError || m.refusalTriggered
                             ? 'text-[#DC2626]'
                             : m.role === 'user'
                             ? 'text-[#DC2626]'
@@ -400,11 +412,17 @@ export function AssistantPage() {
                           : "AI Maître D'"}
                       </span>
 
-                      {m.role === 'assistant' && !m.refusalTriggered && (
+                      {m.role === 'assistant' && !m.refusalTriggered && !m.isError && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-[#059669]/30 text-[#047857] font-semibold">
                           <Sparkles className="w-2.5 h-2.5" />
-                          Groq • {m.model ?? 'openai/gpt-oss-120b'} •{' '}
-                          {m.provider === 'groq' ? 'Live API' : 'Grounded RAG'}
+                          Groq • {m.model ?? 'openai/gpt-oss-120b'} • Live API
+                        </span>
+                      )}
+
+                      {m.isError && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 border border-[#DC2626]/30 text-[#B91C1C] font-semibold">
+                          <AlertCircle className="w-2.5 h-2.5" />
+                          API Error
                         </span>
                       )}
                     </div>
@@ -424,6 +442,8 @@ export function AssistantPage() {
                     className={`text-sm leading-relaxed ${
                       m.role === 'user'
                         ? 'font-medium text-[#991B1B]'
+                        : m.isError
+                        ? 'font-medium text-[#B91C1C]'
                         : 'text-[#111827]'
                     }`}
                   >

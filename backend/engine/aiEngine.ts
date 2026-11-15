@@ -341,11 +341,14 @@ export function runSearchBenchmarks(
       }
     }
   }
-  const bfsTime = Math.max(0.8, Number((performance.now() - t0Bfs + 1.85).toFixed(2)));
-  const bfsUtil = Math.min(
-    99.2,
-    Number((((alreadySeatedSeats + bfsSeated) / totalSeats) * 100).toFixed(1)),
-  );
+  const bfsTime = Number(Math.max(0.01, performance.now() - t0Bfs).toFixed(2));
+  const bfsUtil =
+    totalSeats > 0
+      ? Math.min(
+          100,
+          Number((((alreadySeatedSeats + bfsSeated) / totalSeats) * 100).toFixed(1)),
+        )
+      : 0;
 
   // 2. DFS
   const t0Dfs = performance.now();
@@ -370,11 +373,14 @@ export function runSearchBenchmarks(
       }
     }
   }
-  const dfsTime = Math.max(1.1, Number((performance.now() - t0Dfs + 2.42).toFixed(2)));
-  const dfsUtil = Math.min(
-    99.2,
-    Number((((alreadySeatedSeats + dfsSeated) / totalSeats) * 100).toFixed(1)),
-  );
+  const dfsTime = Number(Math.max(0.01, performance.now() - t0Dfs).toFixed(2));
+  const dfsUtil =
+    totalSeats > 0
+      ? Math.min(
+          100,
+          Number((((alreadySeatedSeats + dfsSeated) / totalSeats) * 100).toFixed(1)),
+        )
+      : 0;
 
   // 3. Hill Climbing
   const t0Hc = performance.now();
@@ -402,11 +408,14 @@ export function runSearchBenchmarks(
       }
     }
   }
-  const hcTime = Math.max(0.3, Number((performance.now() - t0Hc + 0.58).toFixed(2)));
-  const hcUtil = Math.min(
-    99.2,
-    Number((((alreadySeatedSeats + hcSeated) / totalSeats) * 100).toFixed(1)),
-  );
+  const hcTime = Number(Math.max(0.01, performance.now() - t0Hc).toFixed(2));
+  const hcUtil =
+    totalSeats > 0
+      ? Math.min(
+          100,
+          Number((((alreadySeatedSeats + hcSeated) / totalSeats) * 100).toFixed(1)),
+        )
+      : 0;
 
   // 4. A* Search
   const t0Astar = performance.now();
@@ -435,23 +444,14 @@ export function runSearchBenchmarks(
       }
     });
   }
-  const aStarTime = Math.max(
-    0.25,
-    Number((performance.now() - t0Astar + 0.41).toFixed(2)),
-  );
-  const aStarUtil = Math.min(
-    99.8,
-    Math.max(
-      hcUtil,
-      Number(
-        (
-          ((alreadySeatedSeats + aStarSeated + Math.max(0, 2 - aStarWasted)) /
-            totalSeats) *
-          100
-        ).toFixed(1),
-      ),
-    ),
-  );
+  const aStarTime = Number(Math.max(0.01, performance.now() - t0Astar).toFixed(2));
+  const aStarUtil =
+    totalSeats > 0
+      ? Math.min(
+          100,
+          Number((((alreadySeatedSeats + aStarSeated) / totalSeats) * 100).toFixed(1)),
+        )
+      : 0;
 
   return [
     {
@@ -556,6 +556,7 @@ export function stepMultiAgentSimulation(
         table.assignedPartyId = null;
         table.assignedPartyName = null;
         table.assignedPartySize = null;
+        table.activeBookingId = null;
       }
     }
   }
@@ -629,6 +630,10 @@ export function stepMultiAgentSimulation(
         bestTable.status = 'Free';
         bestTable.currentCourse = 'None';
         bestTable.elapsedMins = 0;
+        bestTable.assignedPartyId = null;
+        bestTable.assignedPartyName = null;
+        bestTable.assignedPartySize = null;
+        bestTable.activeBookingId = null;
         newEvents.push({
           id: `evt-${nextTick}-${waiter.id}`,
           tick: nextTick,
@@ -671,6 +676,17 @@ export function stepMultiAgentSimulation(
           message: `${waiter.name} utility ${bestBreakdown.totalUtility} → Course pacing (${bestTable.currentCourse}) at ${bestTable.id}.`,
         });
       }
+    } else {
+      waiter.currentAction = 'Standby';
+      waiter.targetTableId = null;
+      waiter.utilityScore = 0;
+      waiter.utilityBreakdown = {
+        urgency: 0,
+        vipBonus: 0,
+        distancePenalty: 0,
+        loadPenalty: 0,
+        totalUtility: 0,
+      };
     }
   }
 
@@ -714,6 +730,17 @@ export function stepMultiAgentSimulation(
         message: `Rule R3 dispatched by Host-01 for ${nextParty.name} (${nextParty.waitMins}m wait) → Complimentary Saffron Amuse-Bouche.`,
       });
     }
+  } else if (hostAgent) {
+    hostAgent.currentAction = 'Standby';
+    hostAgent.targetTableId = null;
+    hostAgent.utilityScore = 0;
+    hostAgent.utilityBreakdown = {
+      urgency: 0,
+      vipBonus: 0,
+      distancePenalty: 0,
+      loadPenalty: 0,
+      totalUtility: 0,
+    };
   }
 
   return { tables: nextTables, queue: nextQueue, waiters: nextWaiters, newEvents };
@@ -853,7 +880,6 @@ export function computeFloorEfficiency(tables: RestaurantTable[]): {
   const free = tables.filter((t) => t.status === 'Free');
   const accessibleAvailable = free.filter((t) => t.isAccessible);
 
-  const totalSeats = tables.reduce((s, t) => s + t.capacity, 0);
   const activeSeats = occupied.reduce(
     (s, t) => s + (t.assignedPartySize ?? t.capacity),
     0,
@@ -863,8 +889,6 @@ export function computeFloorEfficiency(tables: RestaurantTable[]): {
   const seatEfficiencyPct =
     utilizedCapacity > 0
       ? Number(((activeSeats / utilizedCapacity) * 100).toFixed(1))
-      : totalSeats > 0
-      ? 98.4
       : 0;
 
   const avgTurnoverRateMins =
@@ -873,7 +897,7 @@ export function computeFloorEfficiency(tables: RestaurantTable[]): {
           occupied.reduce((s, t) => s + Math.max(12, 62 - t.elapsedMins), 0) /
             occupied.length,
         )
-      : 28;
+      : 0;
 
   return {
     occupiedCount: occupied.length,

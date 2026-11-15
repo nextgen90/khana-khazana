@@ -38,6 +38,23 @@ const ZONE_OPTIONS: Array<{ label: string; value: ZonePreference }> = [
   { label: 'Any Optimal Zone', value: 'ANY' },
 ];
 
+function toLocalDateTimeInput(date: Date): string {
+  const yyyy = date.getFullYear();
+  const mo = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${yyyy}-${mo}-${dd}T${hh}:${mm}`;
+}
+
+function getDefaultFutureSlotLocal(): string {
+  const d = new Date(Date.now() + 60 * 60_000);
+  const mins = d.getMinutes();
+  const rounded = mins <= 30 ? 30 : 60;
+  d.setMinutes(rounded, 0, 0);
+  return toLocalDateTimeInput(d);
+}
+
 export function BookPage() {
   const {
     tables,
@@ -56,7 +73,7 @@ export function BookPage() {
   const [guestName, setGuestName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [dateTime, setDateTime] = useState('2026-11-14T20:00');
+  const [dateTime, setDateTime] = useState(getDefaultFutureSlotLocal);
   const [partySize, setPartySize] = useState(4);
   const [preferredZone, setPreferredZone] = useState<ZonePreference>('Main Hall');
   const [needsWheelchair, setNeedsWheelchair] = useState(false);
@@ -193,33 +210,6 @@ export function BookPage() {
     };
   }, [pinnedTableIds, tables, partySize]);
 
-  const applyPreset = (preset: 'accessible' | 'conflict') => {
-    setFormError('');
-    setBookingResult(null);
-    setPinnedTableIds([]);
-    if (preset === 'accessible') {
-      setGuestName('Ananya Kapoor');
-      setEmail('ananya.kapoor@example.com');
-      setPhone('+91 98204 55110');
-      setDateTime('2026-11-14T20:30');
-      setPartySize(4);
-      setPreferredZone('Main Hall');
-      setNeedsWheelchair(true);
-      setIsVip(true);
-      setSpecialRequests('Step-free table & Jain vegetarian starter');
-    } else {
-      setGuestName('Vikram Patel');
-      setEmail('vikram.patel@example.com');
-      setPhone('+91 98118 22014');
-      setDateTime('2026-11-14T20:15');
-      setPartySize(4);
-      setPreferredZone('VIP Lounge');
-      setNeedsWheelchair(true);
-      setIsVip(true);
-      setSpecialRequests('Wheelchair access inside VIP Lounge');
-    }
-  };
-
   const submitWithValues = async (
     overrides?: Partial<{
       dateTime: string;
@@ -229,6 +219,7 @@ export function BookPage() {
     const trimmedName = guestName.trim();
     const trimmedEmail = email.trim();
     const trimmedPhone = phone.trim();
+    const targetSlot = overrides?.dateTime ?? dateTime;
 
     if (!trimmedName) {
       setFormError('Please enter your full name.');
@@ -242,6 +233,15 @@ export function BookPage() {
       setFormError('Please enter a contact phone number.');
       return;
     }
+    const parsedSlot = Date.parse(targetSlot);
+    if (!targetSlot || Number.isNaN(parsedSlot)) {
+      setFormError('Please choose a valid date and time slot.');
+      return;
+    }
+    if (parsedSlot < Date.now() - 15 * 60_000) {
+      setFormError('Cannot book a time slot in the past. Please choose an upcoming date & time.');
+      return;
+    }
 
     setFormError('');
     setIsSubmitting(true);
@@ -250,7 +250,7 @@ export function BookPage() {
         guestName: trimmedName,
         email: trimmedEmail,
         phone: trimmedPhone,
-        dateTime: overrides?.dateTime ?? dateTime,
+        dateTime: targetSlot,
         partySize,
         preferredZone: overrides?.preferredZone ?? preferredZone,
         needsWheelchair,
@@ -264,6 +264,12 @@ export function BookPage() {
         setPinnedTableIds([]);
         setShowEmailModal(true);
       }
+    } catch (err) {
+      setFormError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to persist booking in NeonDB. Please try again.',
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -286,6 +292,7 @@ export function BookPage() {
   const handleCheckInAndOpenMenu = async () => {
     if (!bookingResult?.reservation) return;
     setIsCheckingIn(true);
+    setFormError('');
     try {
       const res = await simulateGuestArrival(bookingResult.reservation.bookingId);
       const assignedTable =
@@ -294,10 +301,17 @@ export function BookPage() {
         'T3';
       setShowEmailModal(false);
       navigate(`/table/${assignedTable}/menu`);
+    } catch (err) {
+      setShowEmailModal(false);
+      setFormError(
+        err instanceof Error ? err.message : 'Unable to check in guest right now.',
+      );
     } finally {
       setIsCheckingIn(false);
     }
   };
+
+  const minSlotLocal = toLocalDateTimeInput(new Date());
 
   return (
     <div className="pt-28 pb-24 bg-[#F5EFE6] text-[#111827] overflow-x-clip">
@@ -308,23 +322,6 @@ export function BookPage() {
           title="Book Your Table with Live AI Verification"
           subtitle="Instant NeonDB slot validation, deterministic accessibility & table-merge checks, and automated QR Check-In pass delivery."
         />
-
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={() => applyPreset('accessible')}
-            className="px-4 py-2 rounded-full border border-[#059669] bg-[#ECFDF5] text-xs font-semibold text-[#047857] hover:bg-[#059669] hover:text-white transition-colors whitespace-nowrap"
-          >
-            Preset: Accessible Family
-          </button>
-          <button
-            type="button"
-            onClick={() => applyPreset('conflict')}
-            className="px-4 py-2 rounded-full border border-[#DC2626] bg-[#FEF2F2] text-xs font-semibold text-[#DC2626] hover:bg-[#DC2626] hover:text-white transition-colors whitespace-nowrap"
-          >
-            Preset: Test Conflict Slot
-          </button>
-        </div>
       </div>
 
       {/* Real-Time BookMyShow-Style Floor & Seat Map */}
@@ -426,6 +423,7 @@ export function BookPage() {
                   <input
                     id="book-datetime"
                     type="datetime-local"
+                    min={minSlotLocal}
                     value={dateTime}
                     onChange={(e) => setDateTime(e.target.value)}
                     className="w-full border-b border-neutral-300 bg-transparent px-1 py-2.5 text-sm text-[#111827] focus:outline-none focus:border-[#DC2626] tabular-nums"
@@ -638,9 +636,7 @@ export function BookPage() {
                   <strong className="text-[#047857]">
                     {bookingResult.reservation.assignedTableIds.join(' + ')}
                   </strong>{' '}
-                  {bookingResult.persistedToDb === false
-                    ? 'is reserved in your local session (NeonDB API unreachable) and pass generated for '
-                    : 'is locked in NeonDB and your QR pass was dispatched to '}
+                  is locked in NeonDB and your QR pass has been prepared for{' '}
                   <span className="font-mono text-xs text-neutral-700">
                     {bookingResult.reservation.email}
                   </span>
@@ -830,19 +826,9 @@ export function BookPage() {
                       · {bookingResult.reservation.partySize} Guests ·{' '}
                       {bookingResult.reservation.bayesianConfidencePct}% Confidence
                     </p>
-                    <div
-                      className={`flex items-center gap-2 font-mono text-[11px] ${
-                        bookingResult.persistedToDb === false
-                          ? 'text-amber-700'
-                          : 'text-[#047857]'
-                      }`}
-                    >
+                    <div className="flex items-center gap-2 font-mono text-[11px] text-[#047857]">
                       <Clock className="w-3.5 h-3.5" />
-                      <span>
-                        {bookingResult.persistedToDb === false
-                          ? 'Local session only (connect NeonDB backend to persist)'
-                          : 'Committed to NeonDB & synced live to Admin Floor'}
-                      </span>
+                      <span>Committed to NeonDB & synced live to Admin Floor</span>
                     </div>
                   </div>
                 </div>
@@ -857,7 +843,7 @@ export function BookPage() {
                     <QrCode className="w-4 h-4" />
                     {isCheckingIn
                       ? 'Checking In via A*...'
-                      : 'Simulate Guest Arrival (Check-In & Open QR Menu)'}
+                      : 'Check-In & Open Table QR Menu'}
                   </button>
                   <button
                     type="button"

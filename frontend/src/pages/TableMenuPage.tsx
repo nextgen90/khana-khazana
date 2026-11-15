@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  AlertCircle,
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
@@ -14,7 +15,6 @@ import {
   X,
 } from 'lucide-react';
 import { useRestaurant } from '../context/RestaurantContext';
-import { MENU_DISHES } from '../../../backend/engine/data';
 import type {
   CartOrderItem,
   KitchenOrder,
@@ -35,10 +35,18 @@ const CATEGORIES: Array<'All' | MenuDish['category']> = [
   'Desserts',
 ];
 
+const ORDER_STAGES = [
+  'Order Received',
+  'Preparing',
+  'Waiter En Route',
+  'Served',
+] as const;
+
 export function TableMenuPage({ tableId }: TableMenuPageProps) {
   const {
     tables,
     ingredients,
+    menuDishes,
     orders,
     placeTableOrder,
     advanceOrderStatus,
@@ -46,15 +54,13 @@ export function TableMenuPage({ tableId }: TableMenuPageProps) {
   } = useRestaurant();
 
   const normalizedTableId = tableId.toUpperCase();
-  const tableInfo =
-    tables.find((t) => t.id === normalizedTableId) ?? tables[2] ?? tables[0];
+  const tableInfo = tables.find((t) => t.id === normalizedTableId);
 
   const [activeCategory, setActiveCategory] = useState<'All' | MenuDish['category']>('All');
-  const [cart, setCart] = useState<CartOrderItem[]>([
-    { dishId: 'dish-truffle-paneer', quantity: 1 },
-  ]);
+  const [cart, setCart] = useState<CartOrderItem[]>([]);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [isPlacing, setIsPlacing] = useState(false);
+  const [orderError, setOrderError] = useState('');
   const [orderLatencyMs, setOrderLatencyMs] = useState<number | null>(null);
   const [confirmedOrderId, setConfirmedOrderId] = useState<string | null>(null);
   const [stockConflicts, setStockConflicts] = useState<OutOfStockConflict[] | null>(
@@ -67,12 +73,12 @@ export function TableMenuPage({ tableId }: TableMenuPageProps) {
   );
 
   const filteredDishes = useMemo(() => {
-    if (activeCategory === 'All') return MENU_DISHES;
-    return MENU_DISHES.filter((d) => d.category === activeCategory);
-  }, [activeCategory]);
+    if (activeCategory === 'All') return menuDishes;
+    return menuDishes.filter((d) => d.category === activeCategory);
+  }, [activeCategory, menuDishes]);
 
   const cartDetails = useMemo(() => {
-    const dishMap = new Map(MENU_DISHES.map((d) => [d.id, d]));
+    const dishMap = new Map(menuDishes.map((d) => [d.id, d]));
     return cart
       .map((item) => {
         const dish = dishMap.get(item.dishId);
@@ -80,7 +86,7 @@ export function TableMenuPage({ tableId }: TableMenuPageProps) {
         return { dish, quantity: item.quantity };
       })
       .filter((x): x is { dish: MenuDish; quantity: number } => Boolean(x));
-  }, [cart]);
+  }, [cart, menuDishes]);
 
   const cartTotal = useMemo(
     () =>
@@ -96,15 +102,50 @@ export function TableMenuPage({ tableId }: TableMenuPageProps) {
     [cartDetails],
   );
 
-  const activeTicket: KitchenOrder | undefined = useMemo(
-    () =>
-      confirmedOrderId
-        ? orders.find((o) => o.orderId === confirmedOrderId)
-        : orders.find((o) => o.tableId === normalizedTableId),
-    [orders, confirmedOrderId, normalizedTableId],
-  );
+  const activeTicket: KitchenOrder | undefined = useMemo(() => {
+    if (confirmedOrderId) {
+      const explicit = orders.find(
+        (o) => o.orderId === confirmedOrderId && o.tableId === normalizedTableId,
+      );
+      if (explicit) return explicit;
+    }
+    return orders.find(
+      (o) => o.tableId === normalizedTableId && o.status !== 'Served',
+    );
+  }, [orders, confirmedOrderId, normalizedTableId]);
+
+  if (!tableInfo) {
+    return (
+      <div className="pt-32 pb-28 bg-[#F5EFE6] text-[#111827] min-h-[70vh]">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center space-y-6">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-[#DC2626] font-semibold">
+            Invalid Table QR Code
+          </p>
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold">
+            Table {normalizedTableId} Does Not Exist
+          </h1>
+          <p className="text-sm text-neutral-600">
+            Select a valid dining table (T1–T10) to open its live QR digital menu.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2 pt-2">
+            {tables.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => navigate(`/table/${t.id}/menu`)}
+                className="px-4 py-2 border border-[#DCD0BE] bg-[#FBF8F2] font-mono text-xs font-semibold hover:border-[#DC2626] hover:text-[#DC2626] transition-colors"
+              >
+                {t.id} · {t.zone}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const updateCartQuantity = (dishId: string, delta: number) => {
+    setOrderError('');
     setCart((prev) => {
       const existing = prev.find((i) => i.dishId === dishId);
       if (!existing && delta > 0) {
@@ -121,6 +162,7 @@ export function TableMenuPage({ tableId }: TableMenuPageProps) {
   const handlePlaceOrder = async (itemsToSubmit: CartOrderItem[] = cart) => {
     if (itemsToSubmit.length === 0 || isPlacing) return;
     setIsPlacing(true);
+    setOrderError('');
     try {
       const resp = await placeTableOrder(normalizedTableId, itemsToSubmit);
       setOrderLatencyMs(resp.responseTimeMs);
@@ -130,7 +172,15 @@ export function TableMenuPage({ tableId }: TableMenuPageProps) {
         setCart([]);
       } else if (resp.conflicts && resp.conflicts.length > 0) {
         setStockConflicts(resp.conflicts);
+      } else {
+        setOrderError('Unable to validate and place order. Please review your tray.');
       }
+    } catch (err) {
+      setOrderError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to place order against NeonDB kitchen inventory.',
+      );
     } finally {
       setIsPlacing(false);
     }
@@ -175,19 +225,23 @@ export function TableMenuPage({ tableId }: TableMenuPageProps) {
             subtitle="Browse chef-crafted dishes, inspect live kitchen ingredient freshness, and place your table order with sub-1.2s atomic stock validation."
           />
 
-          <div className="inline-flex border border-[#DCD0BE] divide-x divide-[#DCD0BE] shrink-0">
-            {['T1', 'T3', 'T5', 'T8'].map((tid) => (
+          <div className="flex flex-wrap border border-[#DCD0BE] divide-x divide-y sm:divide-y-0 divide-[#DCD0BE] shrink-0">
+            {tables.map((t) => (
               <button
-                key={tid}
+                key={t.id}
                 type="button"
-                onClick={() => navigate(`/table/${tid}/menu`)}
-                className={`px-3.5 py-2 font-mono text-xs font-semibold transition-colors ${
-                  normalizedTableId === tid
+                onClick={() => {
+                  setConfirmedOrderId(null);
+                  setOrderError('');
+                  navigate(`/table/${t.id}/menu`);
+                }}
+                className={`px-2.5 py-2 font-mono text-xs font-semibold transition-colors ${
+                  normalizedTableId === t.id
                     ? 'bg-[#DC2626] text-white'
                     : 'bg-[#FBF8F2] text-neutral-700 hover:bg-[#ECE3D3]'
                 }`}
               >
-                Table {tid}
+                {t.id}
               </button>
             ))}
           </div>
@@ -223,42 +277,46 @@ export function TableMenuPage({ tableId }: TableMenuPageProps) {
                       Response Time: {orderLatencyMs}ms
                     </span>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => advanceOrderStatus(activeTicket.orderId)}
-                    className="px-4 py-2 rounded-full border border-[#059669] bg-[#FBF8F2] text-xs font-semibold text-[#047857] hover:bg-[#059669] hover:text-white transition-colors whitespace-nowrap"
-                  >
-                    Advance Stage
-                  </button>
+                  {activeTicket.status !== 'Served' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void advanceOrderStatus(activeTicket.orderId).catch((err) =>
+                          setOrderError(
+                            err instanceof Error ? err.message : 'Unable to advance order status.',
+                          ),
+                        );
+                      }}
+                      className="px-4 py-2 rounded-full border border-[#059669] bg-[#FBF8F2] text-xs font-semibold text-[#047857] hover:bg-[#059669] hover:text-white transition-colors whitespace-nowrap"
+                    >
+                      Advance Stage
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 border border-[#DCD0BE] divide-x divide-[#DCD0BE] bg-[#FBF8F2]">
-                {(['Order Received', 'Preparing', 'Waiter En Route'] as const).map(
-                  (stage, idx) => {
-                    const stageIndex = ['Order Received', 'Preparing', 'Waiter En Route'].indexOf(
-                      activeTicket.status,
-                    );
-                    const reached = idx <= stageIndex;
-                    return (
-                      <div
-                        key={stage}
-                        className={`px-3.5 py-2.5 font-mono text-xs flex items-center gap-2 ${
-                          reached
-                            ? 'bg-[#ECFDF5] text-[#047857] font-semibold'
-                            : 'bg-[#FBF8F2] text-neutral-500'
+              <div className="grid grid-cols-2 sm:grid-cols-4 border border-[#DCD0BE] divide-x divide-y sm:divide-y-0 divide-[#DCD0BE] bg-[#FBF8F2]">
+                {ORDER_STAGES.map((stage, idx) => {
+                  const stageIndex = ORDER_STAGES.indexOf(activeTicket.status);
+                  const reached = idx <= stageIndex;
+                  return (
+                    <div
+                      key={stage}
+                      className={`px-3.5 py-2.5 font-mono text-xs flex items-center gap-2 ${
+                        reached
+                          ? 'bg-[#ECFDF5] text-[#047857] font-semibold'
+                          : 'bg-[#FBF8F2] text-neutral-500'
+                      }`}
+                    >
+                      <CheckCircle2
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          reached ? 'text-[#059669]' : 'text-neutral-300'
                         }`}
-                      >
-                        <CheckCircle2
-                          className={`w-3.5 h-3.5 shrink-0 ${
-                            reached ? 'text-[#059669]' : 'text-neutral-300'
-                          }`}
-                        />
-                        <span className="truncate">{stage}</span>
-                      </div>
-                    );
-                  },
-                )}
+                      />
+                      <span className="truncate">{stage}</span>
+                    </div>
+                  );
+                })}
               </div>
 
               <p className="text-xs text-neutral-700">
@@ -479,6 +537,16 @@ export function TableMenuPage({ tableId }: TableMenuPageProps) {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {orderError && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 text-xs text-[#B91C1C] bg-[#FEF2F2] border border-[#DC2626]/40 px-3.5 py-2.5"
+                >
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{orderError}</span>
                 </div>
               )}
 

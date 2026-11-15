@@ -49,7 +49,7 @@ export function SvgFloorGrid({
             Live SVG Floor Grid (T1–T10)
           </h2>
           <p className="text-xs text-neutral-600 mt-0.5">
-            Click any table node to inspect Bayesian turnover, simulate states, or launch its QR Pass.
+            Click any table node to inspect Bayesian turnover, update table status, or launch its QR Pass.
           </p>
         </div>
 

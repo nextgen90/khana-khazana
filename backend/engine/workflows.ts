@@ -41,6 +41,19 @@ function formatReadableTime(dateTimeStr: string): string {
   });
 }
 
+export function isSlotOverlapping(
+  slotA: string,
+  slotB: string,
+  windowMins = 90,
+): boolean {
+  const timeA = Date.parse(slotA);
+  const timeB = Date.parse(slotB);
+  if (Number.isNaN(timeA) || Number.isNaN(timeB)) {
+    return slotA === slotB;
+  }
+  return Math.abs(timeA - timeB) < windowMins * 60_000;
+}
+
 /**
  * Workflow A: Smart Table Booking & Instant Email Validation
  * Runs Forward-Chaining Rules (R1 Accessibility, R2 Adjacent Table Merge) +
@@ -53,10 +66,13 @@ export function validateBookingWorkflow(
 ): BookingValidationResponse {
   const t0 = performance.now();
 
-  // Check tables already committed at the same dateTime slot
+  // Check tables already committed within ±90 minutes of the requested dateTime slot
   const slotReservedTableIds = new Set<string>();
+  const existingIds = new Set<string>();
   for (const r of existingReservations) {
-    if (r.dateTime === req.dateTime) {
+    existingIds.add(r.bookingId);
+    if (r.status === 'CANCELLED' || r.status === 'COMPLETED') continue;
+    if (isSlotOverlapping(r.dateTime, req.dateTime)) {
       for (const tid of r.assignedTableIds) {
         slotReservedTableIds.add(tid);
       }
@@ -189,10 +205,7 @@ export function validateBookingWorkflow(
           req.preferredZone === 'ANY' ? 'matching seating' : req.preferredZone
         } capacity for ${req.partySize} guests is fully booked at ${slotLabel}`;
 
-    const elapsedMs = Math.max(
-      240,
-      Math.min(1150, Math.round(performance.now() - t0 + 310)),
-    );
+    const elapsedMs = Math.max(1, Math.round(performance.now() - t0));
 
     return {
       fulfillable: false,
@@ -239,7 +252,10 @@ export function validateBookingWorkflow(
   const totalCap = assignedTables.reduce((s, t) => s + t.capacity, 0);
   const wastedSeats = Math.max(0, totalCap - req.partySize);
 
-  const numericCode = String(Math.floor(1000 + Math.random() * 8999));
+  let numericCode = String(Math.floor(1000 + Math.random() * 8999));
+  while (existingIds.has(`KK-${numericCode}`)) {
+    numericCode = String(Math.floor(1000 + Math.random() * 8999));
+  }
   const bookingId = `KK-${numericCode}`;
   const qrPassCode = `KK-QR-${assignedTableIds[0]}-${numericCode}`;
 
@@ -268,10 +284,7 @@ export function validateBookingWorkflow(
     createdAt,
   };
 
-  const elapsedMs = Math.max(
-    260,
-    Math.min(1180, Math.round(performance.now() - t0 + 340)),
-  );
+  const elapsedMs = Math.max(1, Math.round(performance.now() - t0));
 
   return {
     fulfillable: true,
@@ -363,10 +376,7 @@ export function validateOrderIngredientsWorkflow(
   }
 
   if (conflicts.length > 0) {
-    const elapsedMs = Math.max(
-      180,
-      Math.min(980, Math.round(performance.now() - t0 + 290)),
-    );
+    const elapsedMs = Math.max(1, Math.round(performance.now() - t0));
     return {
       ok: false,
       responseTimeMs: elapsedMs,
@@ -413,7 +423,7 @@ export function validateOrderIngredientsWorkflow(
   ).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
   const order: KitchenOrder = {
-    orderId: `ORD-${Math.floor(400 + Math.random() * 599)}`,
+    orderId: `ORD-${String(Date.now()).slice(-4)}${Math.floor(10 + Math.random() * 89)}`,
     tableId: req.tableId,
     bookingId: req.bookingId,
     items: orderItems,
@@ -424,10 +434,7 @@ export function validateOrderIngredientsWorkflow(
     createdAt,
   };
 
-  const elapsedMs = Math.max(
-    210,
-    Math.min(950, Math.round(performance.now() - t0 + 320)),
-  );
+  const elapsedMs = Math.max(1, Math.round(performance.now() - t0));
 
   return {
     ok: true,

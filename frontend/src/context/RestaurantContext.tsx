@@ -23,11 +23,10 @@ import {
   computeFairnessAudit,
   computeFloorEfficiency,
   runSearchBenchmarks,
-  stepMultiAgentSimulation,
 } from '../../../backend/engine/aiEngine';
 import {
   advanceOrderStatusApi,
-  allocateTableViaAStar,
+  cancelReservationApi,
   checkInGuestViaApi,
   fetchFloorStateFromApi,
   resetFloorApi,
@@ -36,6 +35,7 @@ import {
   updateTableStateApi,
   validateAndCreateBooking,
   validateOrderIngredients,
+  type HydratedFloorPayload,
 } from '../api/backendService';
 import type {
   AgentEvent,
@@ -49,6 +49,7 @@ import type {
   FairnessAudit,
   IngredientItem,
   KitchenOrder,
+  MenuDish,
   OrderIngredientValidationResponse,
   OrderStatus,
   PortalMode,
@@ -89,6 +90,7 @@ interface RestaurantContextValue {
   queue: WaitingParty[];
   reservations: ReservationRecord[];
   ingredients: IngredientItem[];
+  menuDishes: MenuDish[];
   orders: KitchenOrder[];
   waiters: WaiterAgent[];
   events: AgentEvent[];
@@ -108,11 +110,15 @@ interface RestaurantContextValue {
   isAutoPlaying: boolean;
   setIsAutoPlaying: React.Dispatch<React.SetStateAction<boolean>>;
   dbConnected: boolean;
-  lastLatencyMs: number;
-  stepSimulationTick: () => void;
+  isDbLoading: boolean;
+  dbError: string | null;
+  lastLatencyMs: number | null;
+  refreshFloor: () => Promise<void>;
+  stepSimulationTick: () => Promise<void>;
   validateAndSubmitBooking: (
     req: BookingValidationRequest,
   ) => Promise<BookingValidationResponse>;
+  cancelReservation: (bookingId: string) => Promise<void>;
   simulateGuestArrival: (
     bookingIdOrPartyId: string,
   ) => Promise<{ allocation: AllocationResult; responseTimeMs: number } | null>;
@@ -120,16 +126,16 @@ interface RestaurantContextValue {
     tableId: string,
     items: CartOrderItem[],
   ) => Promise<OrderIngredientValidationResponse>;
-  advanceOrderStatus: (orderId: string) => void;
-  setIngredientStock: (ingredientId: string, stock: number) => void;
+  advanceOrderStatus: (orderId: string) => Promise<void>;
+  setIngredientStock: (ingredientId: string, stock: number) => Promise<void>;
   updateTableState: (
     tableId: string,
     nextStatus: TableStatus,
     nextCourse?: CourseStage,
-  ) => void;
+  ) => Promise<void>;
   selectedTableId: string | null;
   setSelectedTableId: React.Dispatch<React.SetStateAction<string | null>>;
-  resetFloor: () => void;
+  resetFloor: () => Promise<void>;
 }
 
 const RestaurantContext = createContext<RestaurantContextValue | null>(null);
@@ -149,6 +155,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     useState<ReservationRecord[]>(INITIAL_RESERVATIONS);
   const [ingredients, setIngredients] =
     useState<IngredientItem[]>(INITIAL_INGREDIENTS);
+  const [menuDishes, setMenuDishes] = useState<MenuDish[]>(MENU_DISHES);
   const [orders, setOrders] = useState<KitchenOrder[]>(INITIAL_ORDERS);
   const [waiters, setWaiters] = useState<WaiterAgent[]>(INITIAL_WAITERS);
   const [events, setEvents] = useState<AgentEvent[]>(INITIAL_AGENT_EVENTS);
@@ -166,31 +173,48 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
   const [tickCount, setTickCount] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
-  const [lastLatencyMs, setLastLatencyMs] = useState(14);
+  const [isDbLoading, setIsDbLoading] = useState(true);
+  const [dbError, setDbError] = useState<string | null>(null);
+  const [lastLatencyMs, setLastLatencyMs] = useState<number | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string | null>('T3');
 
   const simRef = useRef({ tables, queue, waiters, tickCount });
   simRef.current = { tables, queue, waiters, tickCount };
 
-  useEffect(() => {
-    let active = true;
-    fetchFloorStateFromApi().then((snap) => {
-      if (!active || !snap) return;
-      setTables(snap.tables);
-      setQueue(snap.queue);
-      setReservations(snap.reservations);
-      setIngredients(snap.ingredients);
-      setOrders(snap.orders);
-      setWaiters(snap.waiters);
-      setEvents(snap.events);
-      setXaiLogs(snap.xaiLogs);
-      setDbConnected(snap.dbConnected);
-      setLastLatencyMs(snap.dbLatencyMs);
-    });
-    return () => {
-      active = false;
-    };
+  const applySnapshot = useCallback((snap: HydratedFloorPayload) => {
+    setTables(snap.tables);
+    setQueue(snap.queue);
+    setReservations(snap.reservations);
+    setIngredients(snap.ingredients);
+    if (Array.isArray(snap.menuDishes) && snap.menuDishes.length > 0) {
+      setMenuDishes(snap.menuDishes);
+    }
+    setOrders(snap.orders);
+    setWaiters(snap.waiters);
+    setEvents(snap.events);
+    setXaiLogs(snap.xaiLogs);
+    setDbConnected(snap.dbConnected);
+    setLastLatencyMs(snap.dbLatencyMs);
+    setDbError(null);
   }, []);
+
+  const refreshFloor = useCallback(async () => {
+    try {
+      const snap = await fetchFloorStateFromApi();
+      applySnapshot(snap);
+    } catch (err) {
+      setDbConnected(false);
+      setDbError(
+        err instanceof Error ? err.message : 'NeonDB connection unavailable.',
+      );
+    } finally {
+      setIsDbLoading(false);
+    }
+  }, [applySnapshot]);
+
+  useEffect(() => {
+    void refreshFloor();
+  }, [refreshFloor]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -222,37 +246,42 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     [navigate],
   );
 
-  const stepSimulationTick = useCallback(() => {
-    const {
-      tables: curT,
-      queue: curQ,
-      waiters: curW,
-      tickCount: curTick,
-    } = simRef.current;
-    const result = stepMultiAgentSimulation(curT, curQ, curW, curTick);
-    setTables(result.tables);
-    setQueue(result.queue);
-    setWaiters(result.waiters);
-    setTickCount(curTick + 1);
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.status === 'Order Received'
-          ? { ...o, status: 'Preparing' }
-          : o.status === 'Preparing'
-          ? { ...o, status: 'Waiter En Route' }
-          : o,
-      ),
-    );
-    if (result.newEvents.length > 0) {
-      setEvents((prev) => [...result.newEvents, ...prev].slice(0, 32));
+  const stepSimulationTick = useCallback(async () => {
+    const curTick = simRef.current.tickCount;
+    try {
+      const result = await stepSimulationTickApi(curTick);
+      setTables(result.tables);
+      setQueue(result.queue);
+      setWaiters(result.waiters);
+      setTickCount(curTick + 1);
+      setDbConnected(true);
+      setDbError(null);
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.status === 'Order Received'
+            ? { ...o, status: 'Preparing' }
+            : o.status === 'Preparing'
+            ? { ...o, status: 'Waiter En Route' }
+            : o.status === 'Waiter En Route'
+            ? { ...o, status: 'Served' }
+            : o,
+        ),
+      );
+      if (result.newEvents.length > 0) {
+        setEvents((prev) => [...result.newEvents, ...prev].slice(0, 32));
+      }
+    } catch (err) {
+      setIsAutoPlaying(false);
+      setDbError(
+        err instanceof Error ? err.message : 'Failed to advance simulation tick.',
+      );
     }
-    void stepSimulationTickApi(curTick);
   }, []);
 
   useEffect(() => {
     if (!isAutoPlaying) return;
     const id = window.setInterval(() => {
-      stepSimulationTick();
+      void stepSimulationTick();
     }, 1800);
     return () => window.clearInterval(id);
   }, [isAutoPlaying, stepSimulationTick]);
@@ -263,72 +292,33 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     return fresh;
   }, [tables, queue, weights]);
 
-  // Workflow A: Smart Booking Validation + Instant Email Pass
+  // Workflow A: Smart Booking Validation + Pass Persistence in NeonDB
   const validateAndSubmitBooking = useCallback(
     async (
       req: BookingValidationRequest,
     ): Promise<BookingValidationResponse> => {
       const resp = await validateAndCreateBooking(req, tables, reservations);
       setLastLatencyMs(resp.responseTimeMs);
-      setDbConnected(Boolean(resp.persistedToDb));
+      setDbConnected(true);
+      setDbError(null);
 
       if (resp.fulfillable && resp.reservation) {
-        const rec = resp.reservation;
-        setReservations((prev) => [rec, ...prev]);
-
-        const newParty: WaitingParty = {
-          id: `P-${rec.bookingId.replace('KK-', '')}`,
-          name: rec.guestName,
-          size: rec.partySize,
-          isVip: rec.isVip,
-          needsWheelchair: rec.needsWheelchair,
-          preferredZone: rec.preferredZone,
-          dietaryNotes: rec.specialRequests,
-          waitMins: rec.isVip ? 11 : 2,
-          status: 'WAITING',
-          bookingId: rec.bookingId,
-        };
-        setQueue((prev) => [newParty, ...prev]);
-
-        setXaiLogs((prev) => [
-          {
-            id: `xai-${Date.now()}`,
-            timestamp: rec.createdAt,
-            partyName: rec.guestName,
-            partySize: rec.partySize,
-            assignedTables: rec.assignedTableIds,
-            algorithm: 'Forward-Chaining + NeonDB Lock',
-            fScore: rec.fScore,
-            bayesianProb: rec.bayesianConfidencePct / 100,
-            rulesApplied: rec.triggeredRules,
-            justification: `Booked ${rec.assignedTableIds.join(
-              ' + ',
-            )} (${rec.bookingId}) with email confirmation sent to ${rec.email}.`,
-          },
-          ...prev,
-        ]);
-
-        setEvents((prev) => [
-          {
-            id: `evt-bk-${Date.now()}`,
-            tick: tickCount,
-            timestamp: rec.createdAt,
-            agentId: 'Host-01',
-            agentName: 'Host-01 · Concierge',
-            agentType: 'Host (Goal-Based)',
-            utilityScore: 0.97,
-            targetTableId: rec.assignedTableIds[0] ?? null,
-            message: `Workflow A locked ${rec.assignedTableIds.join(
-              ' + ',
-            )} for ${rec.guestName} (${rec.bookingId}) & dispatched QR pass email (${resp.responseTimeMs}ms).`,
-          },
-          ...prev,
-        ]);
+        await refreshFloor();
       }
 
       return resp;
     },
-    [tables, reservations, tickCount],
+    [tables, reservations, refreshFloor],
+  );
+
+  const cancelReservation = useCallback(
+    async (bookingId: string) => {
+      const t0 = performance.now();
+      await cancelReservationApi(bookingId);
+      setLastLatencyMs(Math.max(1, Math.round(performance.now() - t0)));
+      await refreshFloor();
+    },
+    [refreshFloor],
   );
 
   // Workflow B: Guest Arrival Check-In + A* Search Assignment + QR Activation
@@ -336,142 +326,23 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     async (
       bookingIdOrPartyId: string,
     ): Promise<{ allocation: AllocationResult; responseTimeMs: number } | null> => {
-      const matchedParty = queue.find(
-        (p) =>
-          (p.id === bookingIdOrPartyId || p.bookingId === bookingIdOrPartyId) &&
-          p.status === 'WAITING',
-      );
-      const matchedRes = reservations.find(
-        (r) => r.bookingId === bookingIdOrPartyId,
-      );
-
-      const targetParty: WaitingParty | null =
-        matchedParty ??
-        (matchedRes
-          ? {
-              id: `P-${matchedRes.bookingId.replace('KK-', '')}`,
-              name: matchedRes.guestName,
-              size: matchedRes.partySize,
-              isVip: matchedRes.isVip,
-              needsWheelchair: matchedRes.needsWheelchair,
-              preferredZone: matchedRes.preferredZone,
-              dietaryNotes: matchedRes.specialRequests,
-              waitMins: 0,
-              status: 'WAITING',
-              bookingId: matchedRes.bookingId,
-            }
-          : null);
-
-      if (!targetParty) return null;
-
-      const remaining = Math.max(
-        0,
-        queue.filter((p) => p.status === 'WAITING').length - 1,
-      );
       const apiCheckIn = await checkInGuestViaApi(bookingIdOrPartyId, weights);
-      if (apiCheckIn) {
-        setDbConnected(Boolean(apiCheckIn.persistedToDb));
-      }
-      const { result, responseTimeMs } = apiCheckIn
-        ? {
-            result: apiCheckIn.allocation,
-            responseTimeMs: apiCheckIn.responseTimeMs,
-          }
-        : await allocateTableViaAStar(tables, targetParty, remaining, weights);
-      setLastLatencyMs(responseTimeMs);
+      setDbConnected(Boolean(apiCheckIn.persistedToDb));
+      setLastLatencyMs(apiCheckIn.responseTimeMs);
+      setDbError(null);
 
-      const now = new Date();
-      const ts = `${String(now.getHours()).padStart(2, '0')}:${String(
-        now.getMinutes(),
-      ).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-
-      if (result.success) {
-        setTables((prev) =>
-          prev.map((t) =>
-            result.assignedTableIds.includes(t.id)
-              ? {
-                  ...t,
-                  status: 'Occupied',
-                  currentCourse: 'Appetizer',
-                  elapsedMins: 0,
-                  assignedPartyId: targetParty.id,
-                  assignedPartyName: targetParty.name,
-                  assignedPartySize: targetParty.size,
-                  activeBookingId:
-                    targetParty.bookingId ?? matchedRes?.bookingId ?? 'WALKIN',
-                }
-              : t,
-          ),
-        );
-
-        setQueue((prev) =>
-          prev.map((p) =>
-            p.id === targetParty.id || p.bookingId === bookingIdOrPartyId
-              ? { ...p, status: 'SEATED' }
-              : p,
-          ),
-        );
-
-        if (targetParty.bookingId || matchedRes) {
-          const bid = targetParty.bookingId ?? matchedRes?.bookingId;
-          setReservations((prev) =>
-            prev.map((r) =>
-              r.bookingId === bid
-                ? {
-                    ...r,
-                    status: 'SEATED',
-                    assignedTableIds: result.assignedTableIds,
-                  }
-                : r,
-            ),
-          );
-        }
-
-        setSelectedTableId(result.assignedTableIds[0] ?? null);
+      if (apiCheckIn.allocation.success) {
+        setSelectedTableId(apiCheckIn.allocation.assignedTableIds[0] ?? null);
       }
 
-      setXaiLogs((prev) => [
-        apiCheckIn?.xaiLog ?? {
-          id: `xai-arr-${Date.now()}`,
-          timestamp: ts,
-          partyName: targetParty.name,
-          partySize: targetParty.size,
-          assignedTables:
-            result.assignedTableIds.length > 0
-              ? result.assignedTableIds
-              : ['Waitlist'],
-          algorithm: 'A* Check-In Dispatch',
-          fScore: result.fScore,
-          bayesianProb: result.bayesianProb,
-          rulesApplied:
-            result.triggeredRules.length > 0
-              ? result.triggeredRules
-              : ['Minimal Waste Heuristic'],
-          justification: result.explanation,
-        },
-        ...prev,
-      ]);
+      await refreshFloor();
 
-      setEvents((prev) => [
-        apiCheckIn?.agentEvent ?? {
-          id: `evt-arr-${Date.now()}`,
-          tick: tickCount,
-          timestamp: ts,
-          agentId: 'Host-01',
-          agentName: 'Host-01 · Concierge',
-          agentType: 'Host (Goal-Based)',
-          utilityScore: 0.98,
-          targetTableId: result.assignedTableIds[0] ?? null,
-          message: `Guest Arrived (${targetParty.name}) → A* assigned ${result.assignedTableIds.join(
-            ' + ',
-          )} & activated Table QR Menu (${responseTimeMs}ms).`,
-        },
-        ...prev,
-      ]);
-
-      return { allocation: result, responseTimeMs };
+      return {
+        allocation: apiCheckIn.allocation,
+        responseTimeMs: apiCheckIn.responseTimeMs,
+      };
     },
-    [queue, reservations, tables, weights, tickCount],
+    [weights, refreshFloor],
   );
 
   // Workflow B: Atomic Recipe-to-Ingredient Check + Kitchen Order Dispatch
@@ -487,161 +358,65 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
           bookingId: tbl?.activeBookingId ?? null,
           items,
         },
-        MENU_DISHES,
+        menuDishes,
         ingredients,
       );
       setLastLatencyMs(resp.responseTimeMs);
-      if (resp.ok) {
-        setDbConnected(Boolean(resp.persistedToDb));
-      }
+      setDbConnected(true);
+      setDbError(null);
 
       if (resp.ok && resp.order && resp.updatedIngredients) {
+        await refreshFloor();
+      } else if (resp.updatedIngredients) {
         setIngredients(resp.updatedIngredients);
-        setOrders((prev) => [resp.order!, ...prev]);
-
-        const matchingWaiter =
-          waiters.find(
-            (w) => w.role === 'Waiter (Utility-Based)' && w.zone === tbl?.zone,
-          ) ?? waiters[0];
-
-        if (matchingWaiter) {
-          setWaiters((prev) =>
-            prev.map((w) =>
-              w.id === matchingWaiter.id
-                ? {
-                    ...w,
-                    currentAction: 'ServeOrder',
-                    targetTableId: tableId,
-                    tasksCompleted: w.tasksCompleted + 1,
-                  }
-                : w,
-            ),
-          );
-        }
-
-        setEvents((prev) => [
-          {
-            id: `evt-ord-${Date.now()}`,
-            tick: tickCount,
-            timestamp: resp.order!.createdAt,
-            agentId: matchingWaiter?.id ?? 'W1',
-            agentName: matchingWaiter?.name ?? 'W1 · Arjun',
-            agentType: 'Waiter (Utility-Based)',
-            utilityScore: 0.95,
-            targetTableId: tableId,
-            message: `QR Order ${resp.order!.orderId} validated in ${resp.responseTimeMs}ms → Dispatched to Kitchen & ${
-              matchingWaiter?.name ?? 'Waiter'
-            } for Table ${tableId}.`,
-          },
-          ...prev,
-        ]);
       }
 
       return resp;
     },
-    [tables, ingredients, waiters, tickCount],
+    [tables, menuDishes, ingredients, refreshFloor],
   );
 
-  const advanceOrderStatus = useCallback((orderId: string) => {
+  const advanceOrderStatus = useCallback(async (orderId: string) => {
+    const updated = await advanceOrderStatusApi(orderId);
     setOrders((prev) =>
-      prev.map((o) => {
-        if (o.orderId !== orderId) return o;
-        const next: OrderStatus =
-          o.status === 'Order Received'
-            ? 'Preparing'
-            : o.status === 'Preparing'
-            ? 'Waiter En Route'
-            : 'Waiter En Route';
-        return { ...o, status: next };
-      }),
+      prev.map((o) => (o.orderId === orderId ? updated : o)),
     );
-    void advanceOrderStatusApi(orderId);
   }, []);
 
   const setIngredientStock = useCallback(
-    (ingredientId: string, stock: number) => {
+    async (ingredientId: string, stock: number) => {
       const clamped = Math.max(0, stock);
+      const updated = await updateIngredientStockApi(ingredientId, clamped);
       setIngredients((prev) =>
-        prev.map((ing) =>
-          ing.id === ingredientId ? { ...ing, stock: clamped } : ing,
-        ),
+        prev.map((ing) => (ing.id === ingredientId ? updated : ing)),
       );
-      void updateIngredientStockApi(ingredientId, clamped);
     },
     [],
   );
 
   const updateTableState = useCallback(
-    (tableId: string, nextStatus: TableStatus, nextCourse?: CourseStage) => {
-      setTables((prev) =>
-        prev.map((t) => {
-          if (t.id !== tableId) return t;
-          const resolvedCourse: CourseStage =
-            nextCourse ??
-            (nextStatus === 'Free' || nextStatus === 'Dirty'
-              ? 'None'
-              : nextStatus === 'Paying'
-              ? 'Billing'
-              : t.currentCourse === 'None'
-              ? 'Mains'
-              : t.currentCourse);
-          return {
-            ...t,
-            status: nextStatus,
-            currentCourse: resolvedCourse,
-            elapsedMins:
-              nextStatus === 'Free' || nextStatus === 'Dirty'
-                ? 0
-                : nextStatus === 'Paying'
-                ? Math.max(50, t.elapsedMins)
-                : t.elapsedMins,
-            assignedPartyId:
-              nextStatus === 'Free' || nextStatus === 'Dirty'
-                ? null
-                : t.assignedPartyId,
-            assignedPartyName:
-              nextStatus === 'Free' || nextStatus === 'Dirty'
-                ? null
-                : t.assignedPartyName,
-            assignedPartySize:
-              nextStatus === 'Free' || nextStatus === 'Dirty'
-                ? null
-                : t.assignedPartySize,
-          };
-        }),
-      );
-      void updateTableStateApi(tableId, nextStatus, nextCourse);
+    async (
+      tableId: string,
+      nextStatus: TableStatus,
+      nextCourse?: CourseStage,
+    ) => {
+      const clearParty = nextStatus === 'Free' || nextStatus === 'Dirty';
+      const updated = await updateTableStateApi(tableId, nextStatus, nextCourse);
+      setTables((prev) => prev.map((t) => (t.id === tableId ? updated : t)));
+      if (clearParty) {
+        await refreshFloor();
+      }
     },
-    [],
+    [refreshFloor],
   );
 
-  const resetFloor = useCallback(() => {
+  const resetFloor = useCallback(async () => {
     setIsAutoPlaying(false);
-    setTables(INITIAL_TABLES);
-    setQueue(INITIAL_QUEUE);
-    setReservations(INITIAL_RESERVATIONS);
-    setIngredients(INITIAL_INGREDIENTS);
-    setOrders(INITIAL_ORDERS);
-    setWaiters(INITIAL_WAITERS);
-    setEvents(INITIAL_AGENT_EVENTS);
-    setXaiLogs(INITIAL_XAI_LOGS);
+    const snap = await resetFloorApi();
+    applySnapshot(snap);
     setTickCount(0);
-    setLastLatencyMs(14);
-    setBenchmarks(runSearchBenchmarks(INITIAL_TABLES, INITIAL_QUEUE, weights));
-    void resetFloorApi().then((snap) => {
-      if (!snap) return;
-      setTables(snap.tables);
-      setQueue(snap.queue);
-      setReservations(snap.reservations);
-      setIngredients(snap.ingredients);
-      setOrders(snap.orders);
-      setWaiters(snap.waiters);
-      setEvents(snap.events);
-      setXaiLogs(snap.xaiLogs);
-      setDbConnected(snap.dbConnected);
-      setLastLatencyMs(snap.dbLatencyMs);
-    });
-  }, [weights]);
+    setBenchmarks(runSearchBenchmarks(snap.tables, snap.queue, weights));
+  }, [applySnapshot, weights]);
 
   const turnoverComparison = useMemo(
     () => compareTurnoverModels(tables),
@@ -662,6 +437,7 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     queue,
     reservations,
     ingredients,
+    menuDishes,
     orders,
     waiters,
     events,
@@ -677,9 +453,13 @@ export function RestaurantProvider({ children }: { children: React.ReactNode }) 
     isAutoPlaying,
     setIsAutoPlaying,
     dbConnected,
+    isDbLoading,
+    dbError,
     lastLatencyMs,
+    refreshFloor,
     stepSimulationTick,
     validateAndSubmitBooking,
+    cancelReservation,
     simulateGuestArrival,
     placeTableOrder,
     advanceOrderStatus,

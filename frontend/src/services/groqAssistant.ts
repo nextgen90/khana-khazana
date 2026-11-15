@@ -1,6 +1,7 @@
 import type {
   IngredientItem,
   MaitreDMessage,
+  MenuDish,
   ReservationRecord,
   RestaurantTable,
   WaitingParty,
@@ -8,7 +9,6 @@ import type {
 } from '../../../backend/engine/types';
 import {
   buildGroqKnowledgeContext,
-  evaluateGroundedMaitreD,
   HALLUCINATION_REFUSAL_TEXT,
 } from '../../../backend/engine/ragGrounding';
 import { resolveApiUrl } from '../api/backendService';
@@ -21,6 +21,7 @@ export interface GroqAssistantQueryParams {
   waiters: WaiterAgent[];
   ingredients: IngredientItem[];
   reservations: ReservationRecord[];
+  menuDishes?: MenuDish[];
 }
 
 export interface GroqAssistantResponse
@@ -71,61 +72,51 @@ export async function queryGroqAssistant(
 ): Promise<GroqAssistantResponse> {
   const t0 = performance.now();
 
-  try {
-    const resp = await fetch(resolveApiUrl('/api/groq/chat'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
+  const resp = await fetch(resolveApiUrl('/api/groq/chat'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
 
-    if (resp.ok) {
-      const data = (await resp.json()) as {
-        reply?: string;
-        sources?: string[];
-        refusalTriggered?: boolean;
-        latencyMs?: number;
-        model?: string;
-        provider?: 'groq' | 'grounded-simulator';
-        grounded?: boolean;
-      };
-
-      return {
-        content: data.reply ?? HALLUCINATION_REFUSAL_TEXT,
-        sources:
-          Array.isArray(data.sources) && data.sources.length > 0
-            ? data.sources
-            : ['[restaurant_policies.md]', '[live_floor_db]'],
-        refusalTriggered: Boolean(data.refusalTriggered),
-        latencyMs: Math.max(
-          15,
-          Math.round(data.latencyMs ?? performance.now() - t0),
-        ),
-        model: data.model ?? 'openai/gpt-oss-120b',
-        provider: data.provider ?? 'grounded-simulator',
-        grounded: data.grounded ?? true,
-      };
+  if (!resp.ok) {
+    let message = `Groq API returned HTTP ${resp.status}`;
+    try {
+      const errData = (await resp.json()) as { error?: string };
+      if (errData?.error) message = errData.error;
+    } catch {
+      // Ignore parse failure
     }
-  } catch {
-    // Graceful local deterministic RAG fallback when running offline
+    throw new Error(message);
   }
 
-  const localResult = evaluateGroundedMaitreD(
-    params.message,
-    params.tables,
-    params.queue,
-    params.waiters,
-    params.ingredients,
-    params.reservations,
-  );
+  const data = (await resp.json()) as {
+    reply?: string;
+    sources?: string[];
+    refusalTriggered?: boolean;
+    latencyMs?: number;
+    model?: string;
+    provider?: 'groq';
+    grounded?: boolean;
+  };
+
+  if (!data.reply) {
+    throw new Error('Groq API returned an empty response.');
+  }
 
   return {
-    content: localResult.reply,
-    sources: localResult.sources,
-    refusalTriggered: localResult.refusalTriggered,
-    latencyMs: Math.max(12, Math.round(performance.now() - t0)),
-    model: 'openai/gpt-oss-120b',
-    provider: 'grounded-simulator',
-    grounded: true,
+    content: data.reply,
+    sources:
+      Array.isArray(data.sources) && data.sources.length > 0
+        ? data.sources
+        : ['[restaurant_policies.md]', '[live_floor_db]'],
+    refusalTriggered: Boolean(data.refusalTriggered),
+    latencyMs: Math.max(
+      1,
+      Math.round(data.latencyMs ?? performance.now() - t0),
+    ),
+    model: data.model ?? 'openai/gpt-oss-120b',
+    provider: data.provider ?? 'groq',
+    grounded: data.grounded ?? true,
   };
 }
 

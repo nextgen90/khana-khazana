@@ -7,9 +7,11 @@ import {
   INITIAL_RESERVATIONS,
   INITIAL_INGREDIENTS,
   MENU_DISHES,
+  SIGNATURE_MENU_KNOWLEDGE_BASE,
 } from './data';
 import {
   computeBayesianTurnoverProb,
+  computeFloorEfficiency,
   runAStarAllocation,
   runSearchBenchmarks,
   stepMultiAgentSimulation,
@@ -18,6 +20,7 @@ import {
   computeFairnessAudit,
 } from './aiEngine';
 import {
+  isSlotOverlapping,
   validateBookingWorkflow,
   validateOrderIngredientsWorkflow,
 } from './workflows';
@@ -30,9 +33,148 @@ import {
 import {
   classifyTableForBooking,
   computeFloorOccupancySummary,
+  getReservedTableIdsForSlot,
   resolveTableClickSelection,
 } from '../../frontend/src/engine/floorMapHelpers';
-import type { WaitingParty } from './types';
+import type { ReservationRecord, RestaurantTable, WaitingParty } from './types';
+
+function makeActiveFloorFixture(): RestaurantTable[] {
+  return INITIAL_TABLES.map((t) => {
+    if (t.id === 'T1') {
+      return {
+        ...t,
+        status: 'Occupied',
+        currentCourse: 'Mains',
+        elapsedMins: 28,
+        assignedPartyId: 'FIX-1',
+        assignedPartyName: 'Couple One',
+        assignedPartySize: 2,
+      };
+    }
+    if (t.id === 'T2') {
+      return {
+        ...t,
+        status: 'Dirty',
+        currentCourse: 'None',
+        elapsedMins: 0,
+        activeBookingId: 'KK-OLD',
+      };
+    }
+    if (t.id === 'T5') {
+      return {
+        ...t,
+        status: 'Paying',
+        currentCourse: 'Billing',
+        elapsedMins: 54,
+        assignedPartyId: 'FIX-5',
+        assignedPartyName: 'Window Party',
+        assignedPartySize: 4,
+        activeBookingId: 'KK-5001',
+      };
+    }
+    if (t.id === 'T8') {
+      return {
+        ...t,
+        status: 'Occupied',
+        currentCourse: 'Dessert',
+        elapsedMins: 42,
+        assignedPartyId: 'FIX-8',
+        assignedPartyName: 'VIP Salon Group',
+        assignedPartySize: 5,
+      };
+    }
+    if (t.id === 'T9') {
+      return {
+        ...t,
+        status: 'Occupied',
+        currentCourse: 'Appetizer',
+        elapsedMins: 12,
+        assignedPartyId: 'FIX-9',
+        assignedPartyName: 'Suite Party',
+        assignedPartySize: 4,
+      };
+    }
+    if (t.id === 'T10') {
+      return {
+        ...t,
+        status: 'Paying',
+        currentCourse: 'Billing',
+        elapsedMins: 56,
+        assignedPartyId: 'FIX-10',
+        assignedPartyName: 'Heritage Table',
+        assignedPartySize: 6,
+      };
+    }
+    return { ...t };
+  });
+}
+
+function makeFixtureReservations(): ReservationRecord[] {
+  return [
+    {
+      bookingId: 'KK-1001',
+      guestName: 'Meera Guest',
+      email: 'meera@example.com',
+      phone: '+91 98200 11111',
+      dateTime: '2026-11-20T20:00',
+      partySize: 4,
+      preferredZone: 'Main Hall',
+      needsWheelchair: true,
+      isVip: false,
+      specialRequests: 'Step-free access',
+      status: 'CONFIRMED',
+      assignedTableIds: ['T3'],
+      qrPassCode: 'KK-QR-T3-1001',
+      triggeredRules: ['R1: Accessible Filter'],
+      bayesianConfidencePct: 98,
+      fScore: 0,
+      createdAt: '18:00:00',
+    },
+    {
+      bookingId: 'KK-1002',
+      guestName: 'VIP Guest',
+      email: 'vip@example.com',
+      phone: '+91 98200 22222',
+      dateTime: '2026-11-20T20:00',
+      partySize: 4,
+      preferredZone: 'VIP Lounge',
+      needsWheelchair: true,
+      isVip: true,
+      specialRequests: 'VIP wheelchair corner',
+      status: 'CONFIRMED',
+      assignedTableIds: ['T9'],
+      qrPassCode: 'KK-QR-T9-1002',
+      triggeredRules: ['R1: Accessible Filter'],
+      bayesianConfidencePct: 98,
+      fScore: 0,
+      createdAt: '18:05:00',
+    },
+  ];
+}
+
+test('Clean initial state has 10 Free tables, empty operational lists, and 0% initial floor efficiency', () => {
+  assert.equal(INITIAL_TABLES.length, 10);
+  assert.equal(INITIAL_TABLES.every((t) => t.status === 'Free'), true);
+  assert.equal(INITIAL_QUEUE.length, 0);
+  assert.equal(INITIAL_RESERVATIONS.length, 0);
+  const eff = computeFloorEfficiency(INITIAL_TABLES);
+  assert.equal(eff.freeCount, 10);
+  assert.equal(eff.occupiedCount, 0);
+  assert.equal(eff.seatEfficiencyPct, 0);
+  assert.equal(eff.avgTurnoverRateMins, 0);
+});
+
+test('MENU_DISHES aligns with SIGNATURE_MENU_KNOWLEDGE_BASE prices and includes cashew/pistachio recipes', () => {
+  for (const kbDish of SIGNATURE_MENU_KNOWLEDGE_BASE) {
+    const found = MENU_DISHES.find((d) => d.name === kbDish.name);
+    assert.ok(found, `Missing dish ${kbDish.name} in MENU_DISHES`);
+    assert.equal(found.price, kbDish.price, `Price mismatch on ${kbDish.name}`);
+  }
+  const pbm = MENU_DISHES.find((d) => d.id === 'dish-paneer-butter-masala');
+  assert.ok(pbm?.recipe.some((r) => r.ingredientId === 'ing-cashew'));
+  const gj = MENU_DISHES.find((d) => d.id === 'dish-gulab-jamun');
+  assert.ok(gj?.recipe.some((r) => r.ingredientId === 'ing-pistachio'));
+});
 
 test('Bayesian turnover probability rises monotonically from Appetizer to Billing', () => {
   const appetizer = computeBayesianTurnoverProb('Occupied', 'Appetizer', 12);
@@ -87,6 +229,7 @@ test('Rule R2 merges adjacent tables T3 + T4 for accessible party of 8 with zero
 });
 
 test('Rule R3 triggers complimentary starter for VIP wait > 10 mins and respects A* weights', () => {
+  const tables = makeActiveFloorFixture();
   const vipWaiting: WaitingParty = {
     id: 'TEST-VIP',
     name: 'VIP Guest',
@@ -98,11 +241,11 @@ test('Rule R3 triggers complimentary starter for VIP wait > 10 mins and respects
     status: 'WAITING',
   };
 
-  const resultDefault = runAStarAllocation(INITIAL_TABLES, vipWaiting, 1, {
+  const resultDefault = runAStarAllocation(tables, vipWaiting, 1, {
     w1Waste: 1,
     w2Wait: 1,
   });
-  const resultHeavyWaste = runAStarAllocation(INITIAL_TABLES, vipWaiting, 1, {
+  const resultHeavyWaste = runAStarAllocation(tables, vipWaiting, 1, {
     w1Waste: 3,
     w2Wait: 1,
   });
@@ -113,38 +256,50 @@ test('Rule R3 triggers complimentary starter for VIP wait > 10 mins and respects
   assert.ok(resultHeavyWaste.hScore > resultDefault.hScore);
 });
 
-test('Workflow A confirms fulfillable bookings with QR/email preview AND politely suggests alternatives on conflict', () => {
+test('Workflow A confirms fulfillable bookings, detects ±90m overlaps, ignores cancelled/completed bookings, and suggests alternatives', () => {
+  const reservations = makeFixtureReservations();
   const fulfillable = validateBookingWorkflow(
     {
       guestName: 'Meera Patel',
       email: 'meera@example.com',
       phone: '+91 98200 11122',
-      dateTime: '2026-11-14T20:30',
+      dateTime: '2026-11-20T20:30',
       partySize: 4,
       preferredZone: 'Main Hall',
       needsWheelchair: true,
       specialRequests: 'Window adjacent if possible',
     },
     INITIAL_TABLES,
-    INITIAL_RESERVATIONS,
+    reservations,
   );
   assert.equal(fulfillable.fulfillable, true);
   assert.ok(fulfillable.reservation?.bookingId.startsWith('KK-'));
   assert.ok(fulfillable.emailPreview?.to === 'meera@example.com');
 
+  // Verify ±90m overlap detection and that CANCELLED bookings do NOT block
+  assert.equal(isSlotOverlapping('2026-11-20T20:00', '2026-11-20T20:45'), true);
+  assert.equal(isSlotOverlapping('2026-11-20T20:00', '2026-11-20T22:00'), false);
+
+  const cancelledList: ReservationRecord[] = reservations.map((r) => ({
+    ...r,
+    status: 'CANCELLED',
+  }));
+  assert.equal(getReservedTableIdsForSlot(cancelledList, '2026-11-20T20:15').size, 0);
+
+  // Conflict: VIP Lounge wheelchair-accessible T9 is reserved at 20:00 -> 20:15 overlaps
   const unfulfillable = validateBookingWorkflow(
     {
       guestName: 'Conflict Group',
       email: 'conflict@example.com',
       phone: '+91 98200 33344',
-      dateTime: '2026-11-14T20:00',
-      partySize: 6,
+      dateTime: '2026-11-20T20:15',
+      partySize: 4,
       preferredZone: 'VIP Lounge',
       needsWheelchair: true,
-      specialRequests: 'VIP accessible for 6',
+      specialRequests: 'VIP accessible for 4',
     },
     INITIAL_TABLES,
-    INITIAL_RESERVATIONS,
+    reservations,
   );
   assert.equal(unfulfillable.fulfillable, false);
   assert.ok(unfulfillable.apologyMessage);
@@ -155,7 +310,7 @@ test('Workflow B atomically deducts recipe ingredients when in stock and detects
   const inStockResp = validateOrderIngredientsWorkflow(
     {
       tableId: 'T3',
-      bookingId: 'KK-8942',
+      bookingId: 'KK-TEST1',
       items: [{ dishId: 'dish-truffle-paneer', quantity: 2 }],
     },
     MENU_DISHES,
@@ -174,7 +329,7 @@ test('Workflow B atomically deducts recipe ingredients when in stock and detects
   const outStockResp = validateOrderIngredientsWorkflow(
     {
       tableId: 'T3',
-      bookingId: 'KK-8942',
+      bookingId: 'KK-TEST1',
       items: [{ dishId: 'dish-truffle-paneer', quantity: 1 }],
     },
     MENU_DISHES,
@@ -186,17 +341,50 @@ test('Workflow B atomically deducts recipe ingredients when in stock and detects
 });
 
 test('Search benchmark, MAS tick, ML predictor, fairness audit, and grounded RAG refusal all work', () => {
-  const benchmarks = runSearchBenchmarks(INITIAL_TABLES, INITIAL_QUEUE);
+  const tables = makeActiveFloorFixture();
+  const sampleQueue: WaitingParty[] = [
+    {
+      id: 'P-1',
+      name: 'Vip One',
+      size: 4,
+      isVip: true,
+      needsWheelchair: false,
+      preferredZone: 'VIP Lounge',
+      waitMins: 12,
+      status: 'WAITING',
+    },
+    {
+      id: 'P-2',
+      name: 'Reg One',
+      size: 2,
+      isVip: false,
+      needsWheelchair: false,
+      preferredZone: 'Window',
+      waitMins: 9,
+      status: 'WAITING',
+    },
+  ];
+
+  const benchmarks = runSearchBenchmarks(tables, sampleQueue);
   assert.equal(benchmarks.length, 4);
   assert.equal(benchmarks.find((b) => b.algorithm === 'A* Search')?.isOptimal, true);
 
-  const sim = stepMultiAgentSimulation(
+  const sim = stepMultiAgentSimulation(tables, sampleQueue, INITIAL_WAITERS, 0);
+  const clearedT2 = sim.tables.find((t) => t.id === 'T2');
+  assert.equal(clearedT2?.status, 'Free');
+  assert.equal(clearedT2?.activeBookingId, null);
+
+  // On clean all-Free floor with empty queue, all waiters return to Standby
+  const idleSim = stepMultiAgentSimulation(
     INITIAL_TABLES,
     INITIAL_QUEUE,
     INITIAL_WAITERS,
     0,
   );
-  assert.equal(sim.tables.find((t) => t.id === 'T2')?.status, 'Free');
+  assert.equal(
+    idleSim.waiters.every((w) => w.currentAction === 'Standby' && w.targetTableId === null),
+    true,
+  );
 
   const custom = predictCustomPartyDuration({
     size: 6,
@@ -206,29 +394,32 @@ test('Search benchmark, MAS tick, ML predictor, fairness audit, and grounded RAG
   });
   assert.equal(custom.symbolicTotalMins, 75);
 
-  const { symbolicMae, mlMae } = compareTurnoverModels(INITIAL_TABLES);
+  const { symbolicMae, mlMae } = compareTurnoverModels(tables);
   assert.ok(mlMae < symbolicMae);
 
-  const audit = computeFairnessAudit(INITIAL_QUEUE);
+  const audit = computeFairnessAudit(sampleQueue);
   assert.equal(typeof audit.fairnessScorePct, 'number');
 
   const refusal = evaluateGroundedMaitreD(
     'Do you have a rooftop swimming pool?',
-    INITIAL_TABLES,
-    INITIAL_QUEUE,
+    tables,
+    sampleQueue,
     INITIAL_WAITERS,
     INITIAL_INGREDIENTS,
-    INITIAL_RESERVATIONS,
+    makeFixtureReservations(),
   );
   assert.equal(refusal.refusalTriggered, true);
   assert.equal(refusal.reply, HALLUCINATION_REFUSAL_TEXT);
 });
 
 test('BookMyShow floor map helpers classify occupancy, enforce Rule R1/R2 on click, and lock preferredTableIds', () => {
+  const tables = makeActiveFloorFixture();
+  const reservations = makeFixtureReservations();
+
   const summary = computeFloorOccupancySummary(
-    INITIAL_TABLES,
-    INITIAL_RESERVATIONS,
-    '2026-11-14T21:00',
+    tables,
+    reservations,
+    '2026-11-20T22:00',
   );
   assert.equal(summary.free, 4);
   assert.equal(summary.payingSoon, 2);
@@ -238,12 +429,12 @@ test('BookMyShow floor map helpers classify occupancy, enforce Rule R1/R2 on cli
   // Rule R1 blocks non-accessible T8 when wheelchair is required
   const blockedR1 = resolveTableClickSelection(
     INITIAL_TABLES,
-    INITIAL_RESERVATIONS,
+    reservations,
     'T8',
     {
       partySize: 4,
       needsWheelchair: true,
-      dateTime: '2026-11-14T21:00',
+      dateTime: '2026-11-20T22:00',
     },
   );
   assert.equal(blockedR1.accepted, false);
@@ -252,28 +443,28 @@ test('BookMyShow floor map helpers classify occupancy, enforce Rule R1/R2 on cli
   // Clicking T3 for party of 8 auto-merges T3 + T4 via Rule R2
   const mergedClick = resolveTableClickSelection(
     INITIAL_TABLES,
-    INITIAL_RESERVATIONS,
+    reservations,
     'T3',
     {
       partySize: 8,
       needsWheelchair: true,
-      dateTime: '2026-11-14T21:00',
+      dateTime: '2026-11-20T22:00',
     },
   );
   assert.equal(mergedClick.accepted, true);
   assert.deepEqual(mergedClick.selectedTableIds, ['T3', 'T4']);
   assert.equal(mergedClick.resolvedZone, 'Main Hall');
 
-  // Slot-booked classification marks T3 as SLOT_BOOKED at 20:00
+  // Slot-booked classification marks T3 as SLOT_BOOKED within ±90m of 20:00
   const t3 = INITIAL_TABLES.find((t) => t.id === 'T3')!;
   const bookedCls = classifyTableForBooking(
     t3,
     INITIAL_TABLES,
-    INITIAL_RESERVATIONS,
+    reservations,
     {
       partySize: 4,
       needsWheelchair: true,
-      dateTime: '2026-11-14T20:00',
+      dateTime: '2026-11-20T20:30',
       pinnedTableIds: [],
       aiRecommendedTableIds: [],
     },
@@ -287,7 +478,7 @@ test('BookMyShow floor map helpers classify occupancy, enforce Rule R1/R2 on cli
       guestName: 'Kabir Mehta',
       email: 'kabir@example.com',
       phone: '+91 98200 99887',
-      dateTime: '2026-11-14T21:00',
+      dateTime: '2026-11-20T22:00',
       partySize: 2,
       preferredZone: 'Window',
       needsWheelchair: true,
@@ -295,7 +486,7 @@ test('BookMyShow floor map helpers classify occupancy, enforce Rule R1/R2 on cli
       preferredTableIds: ['T7'],
     },
     INITIAL_TABLES,
-    INITIAL_RESERVATIONS,
+    reservations,
   );
   assert.equal(pinnedBooking.fulfillable, true);
   assert.deepEqual(pinnedBooking.reservation?.assignedTableIds, ['T7']);
@@ -447,4 +638,3 @@ test('normalizeApiBase rejects bare port strings like 3000 and localhost URLs on
   assert.equal(normalizeApiBase('http://localhost:3000', 'localhost'), 'http://localhost:3000');
   assert.equal(normalizeApiBase('https://api.khana-khazana.app/', 'khana-khazana-dun.vercel.app'), 'https://api.khana-khazana.app');
 });
-

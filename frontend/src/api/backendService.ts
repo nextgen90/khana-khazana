@@ -1,7 +1,7 @@
 /**
  * Modular Backend Service Layer for Khana-Khazana Dual-Portal Architecture.
  *
- * Connected to Express + NeonDB PostgreSQL (`/api/*`) on local Node.js and Vercel Serverless.
+ * Connected strictly to Express + NeonDB PostgreSQL (`/api/*`) on local Node.js and Vercel Serverless.
  */
 
 import type {
@@ -24,11 +24,6 @@ import type {
   WaiterAgent,
   XaiAuditLog,
 } from '../../../backend/engine/types';
-import {
-  allocateTableForArrivalWorkflow,
-  validateBookingWorkflow,
-  validateOrderIngredientsWorkflow,
-} from '../../../backend/engine/workflows';
 
 export interface HydratedFloorPayload {
   dbConnected: boolean;
@@ -37,6 +32,7 @@ export interface HydratedFloorPayload {
   queue: WaitingParty[];
   reservations: ReservationRecord[];
   ingredients: IngredientItem[];
+  menuDishes: MenuDish[];
   orders: KitchenOrder[];
   waiters: WaiterAgent[];
   events: AgentEvent[];
@@ -72,16 +68,26 @@ export function resolveApiUrl(apiPath: string): string {
   return `${resolveApiBase()}${apiPath}`;
 }
 
-export async function fetchFloorStateFromApi(): Promise<HydratedFloorPayload | null> {
+async function readErrorMessage(resp: Response, fallback: string): Promise<string> {
   try {
-    const resp = await fetch(resolveApiUrl('/api/floor/state'));
-    if (!resp.ok) return null;
-    const data = (await resp.json()) as HydratedFloorPayload & { ok?: boolean };
-    if (!data.ok) return null;
-    return data;
+    const data = (await resp.json()) as { error?: string };
+    if (data?.error) return data.error;
   } catch {
-    return null;
+    // Ignore non-JSON error body
   }
+  return `${fallback} (HTTP ${resp.status})`;
+}
+
+export async function fetchFloorStateFromApi(): Promise<HydratedFloorPayload> {
+  const resp = await fetch(resolveApiUrl('/api/floor/state'));
+  if (!resp.ok) {
+    throw new Error(await readErrorMessage(resp, 'Failed to connect to NeonDB floor state'));
+  }
+  const data = (await resp.json()) as HydratedFloorPayload & { ok?: boolean; error?: string };
+  if (!data.ok) {
+    throw new Error(data.error || 'NeonDB floor snapshot returned invalid response.');
+  }
+  return data;
 }
 
 export async function validateAndCreateBooking(
@@ -90,35 +96,42 @@ export async function validateAndCreateBooking(
   reservations: ReservationRecord[],
 ): Promise<BookingValidationResponse> {
   const t0 = performance.now();
-  try {
-    const resp = await fetch(resolveApiUrl('/api/bookings/validate'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        request: payload,
-        tables,
-        reservations,
-      }),
-    });
-    if (resp.ok) {
-      const data = (await resp.json()) as BookingValidationResponse;
-      return {
-        ...data,
-        persistedToDb: Boolean(data.persistedToDb),
-        responseTimeMs: Math.max(
-          25,
-          Math.round(data.responseTimeMs || performance.now() - t0),
-        ),
-      };
-    }
-  } catch {
-    // Graceful local validation fallback if offline
+  const resp = await fetch(resolveApiUrl('/api/bookings/validate'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      request: payload,
+      tables,
+      reservations,
+    }),
+  });
+  if (!resp.ok) {
+    throw new Error(await readErrorMessage(resp, 'Booking validation failed'));
   }
-
+  const data = (await resp.json()) as BookingValidationResponse;
   return {
-    ...validateBookingWorkflow(payload, tables, reservations),
-    persistedToDb: false,
+    ...data,
+    persistedToDb: Boolean(data.persistedToDb),
+    responseTimeMs: Math.max(
+      1,
+      Math.round(data.responseTimeMs || performance.now() - t0),
+    ),
   };
+}
+
+export async function cancelReservationApi(
+  bookingId: string,
+): Promise<{ ok: boolean; reservation: ReservationRecord }> {
+  const resp = await fetch(
+    resolveApiUrl(`/api/reservations/${encodeURIComponent(bookingId)}/cancel`),
+    {
+      method: 'POST',
+    },
+  );
+  if (!resp.ok) {
+    throw new Error(await readErrorMessage(resp, 'Failed to cancel reservation'));
+  }
+  return (await resp.json()) as { ok: boolean; reservation: ReservationRecord };
 }
 
 export async function checkInGuestViaApi(
@@ -130,24 +143,22 @@ export async function checkInGuestViaApi(
   persistedToDb?: boolean;
   xaiLog?: XaiAuditLog;
   agentEvent?: AgentEvent;
-} | null> {
-  try {
-    const resp = await fetch(resolveApiUrl('/api/bookings/check-in'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bookingIdOrPartyId, weights }),
-    });
-    if (!resp.ok) return null;
-    return (await resp.json()) as {
-      allocation: AllocationResult;
-      responseTimeMs: number;
-      persistedToDb?: boolean;
-      xaiLog?: XaiAuditLog;
-      agentEvent?: AgentEvent;
-    };
-  } catch {
-    return null;
+}> {
+  const resp = await fetch(resolveApiUrl('/api/bookings/check-in'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bookingIdOrPartyId, weights }),
+  });
+  if (!resp.ok) {
+    throw new Error(await readErrorMessage(resp, 'Guest check-in failed'));
   }
+  return (await resp.json()) as {
+    allocation: AllocationResult;
+    responseTimeMs: number;
+    persistedToDb?: boolean;
+    xaiLog?: XaiAuditLog;
+    agentEvent?: AgentEvent;
+  };
 }
 
 export async function validateOrderIngredients(
@@ -156,98 +167,114 @@ export async function validateOrderIngredients(
   ingredients: IngredientItem[],
 ): Promise<OrderIngredientValidationResponse & { agentEvent?: AgentEvent }> {
   const t0 = performance.now();
-  try {
-    const resp = await fetch(resolveApiUrl('/api/orders/validate-ingredients'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        request: payload,
-        menuDishes,
-        ingredients,
-      }),
-    });
-    if (resp.ok) {
-      const data = (await resp.json()) as OrderIngredientValidationResponse & {
-        agentEvent?: AgentEvent;
-      };
+  const resp = await fetch(resolveApiUrl('/api/orders/validate-ingredients'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      request: payload,
+      menuDishes,
+      ingredients,
+    }),
+  });
+
+  if (resp.status === 409) {
+    const conflictData = (await resp.json()) as OrderIngredientValidationResponse & {
+      agentEvent?: AgentEvent;
+      error?: string;
+    };
+    if (Array.isArray(conflictData.conflicts) && conflictData.conflicts.length > 0) {
       return {
-        ...data,
-        persistedToDb: Boolean(data.persistedToDb),
+        ...conflictData,
+        ok: false,
+        persistedToDb: false,
         responseTimeMs: Math.max(
-          20,
-          Math.round(data.responseTimeMs || performance.now() - t0),
+          1,
+          Math.round(conflictData.responseTimeMs || performance.now() - t0),
         ),
       };
     }
-  } catch {
-    // Graceful local fallback
+    throw new Error(conflictData.error || 'Insufficient ingredient stock for order.');
   }
 
+  if (!resp.ok) {
+    throw new Error(await readErrorMessage(resp, 'Order placement failed'));
+  }
+
+  const data = (await resp.json()) as OrderIngredientValidationResponse & {
+    agentEvent?: AgentEvent;
+  };
   return {
-    ...validateOrderIngredientsWorkflow(payload, menuDishes, ingredients),
-    persistedToDb: false,
+    ...data,
+    persistedToDb: Boolean(data.persistedToDb),
+    responseTimeMs: Math.max(
+      1,
+      Math.round(data.responseTimeMs || performance.now() - t0),
+    ),
   };
 }
 
 export async function advanceOrderStatusApi(
   orderId: string,
-): Promise<KitchenOrder | null> {
-  try {
-    const resp = await fetch(
-      resolveApiUrl(`/api/orders/${encodeURIComponent(orderId)}/advance`),
-      {
-        method: 'PATCH',
-      },
-    );
-    if (!resp.ok) return null;
-    const data = (await resp.json()) as { order?: KitchenOrder };
-    return data.order ?? null;
-  } catch {
-    return null;
+): Promise<KitchenOrder> {
+  const resp = await fetch(
+    resolveApiUrl(`/api/orders/${encodeURIComponent(orderId)}/advance`),
+    {
+      method: 'PATCH',
+    },
+  );
+  if (!resp.ok) {
+    throw new Error(await readErrorMessage(resp, 'Failed to advance order status'));
   }
+  const data = (await resp.json()) as { order?: KitchenOrder };
+  if (!data.order) {
+    throw new Error('Updated order payload missing from server response.');
+  }
+  return data.order;
 }
 
 export async function updateIngredientStockApi(
   ingredientId: string,
   stock: number,
-): Promise<IngredientItem | null> {
-  try {
-    const resp = await fetch(
-      resolveApiUrl(`/api/ingredients/${encodeURIComponent(ingredientId)}`),
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stock }),
-      },
-    );
-    if (!resp.ok) return null;
-    const data = (await resp.json()) as { ingredient?: IngredientItem };
-    return data.ingredient ?? null;
-  } catch {
-    return null;
+): Promise<IngredientItem> {
+  const resp = await fetch(
+    resolveApiUrl(`/api/ingredients/${encodeURIComponent(ingredientId)}`),
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stock }),
+    },
+  );
+  if (!resp.ok) {
+    throw new Error(await readErrorMessage(resp, 'Failed to update ingredient stock'));
   }
+  const data = (await resp.json()) as { ingredient?: IngredientItem };
+  if (!data.ingredient) {
+    throw new Error('Updated ingredient payload missing from server response.');
+  }
+  return data.ingredient;
 }
 
 export async function updateTableStateApi(
   tableId: string,
   status: TableStatus,
   course?: CourseStage,
-): Promise<RestaurantTable | null> {
-  try {
-    const resp = await fetch(
-      resolveApiUrl(`/api/tables/${encodeURIComponent(tableId)}`),
-      {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, course }),
-      },
-    );
-    if (!resp.ok) return null;
-    const data = (await resp.json()) as { table?: RestaurantTable };
-    return data.table ?? null;
-  } catch {
-    return null;
+): Promise<RestaurantTable> {
+  const resp = await fetch(
+    resolveApiUrl(`/api/tables/${encodeURIComponent(tableId)}`),
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, course }),
+    },
+  );
+  if (!resp.ok) {
+    throw new Error(await readErrorMessage(resp, 'Failed to update table state'));
   }
+  const data = (await resp.json()) as { table?: RestaurantTable };
+  if (!data.table) {
+    throw new Error('Updated table payload missing from server response.');
+  }
+  return data.table;
 }
 
 export async function stepSimulationTickApi(tickCount: number): Promise<{
@@ -255,36 +282,35 @@ export async function stepSimulationTickApi(tickCount: number): Promise<{
   queue: WaitingParty[];
   waiters: WaiterAgent[];
   newEvents: AgentEvent[];
-} | null> {
-  try {
-    const resp = await fetch(resolveApiUrl('/api/simulation/tick'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tickCount }),
-    });
-    if (!resp.ok) return null;
-    return (await resp.json()) as {
-      tables: RestaurantTable[];
-      queue: WaitingParty[];
-      waiters: WaiterAgent[];
-      newEvents: AgentEvent[];
-    };
-  } catch {
-    return null;
+}> {
+  const resp = await fetch(resolveApiUrl('/api/simulation/tick'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tickCount }),
+  });
+  if (!resp.ok) {
+    throw new Error(await readErrorMessage(resp, 'Failed to advance simulation tick'));
   }
+  return (await resp.json()) as {
+    tables: RestaurantTable[];
+    queue: WaitingParty[];
+    waiters: WaiterAgent[];
+    newEvents: AgentEvent[];
+  };
 }
 
-export async function resetFloorApi(): Promise<HydratedFloorPayload | null> {
-  try {
-    const resp = await fetch(resolveApiUrl('/api/floor/reset'), {
-      method: 'POST',
-    });
-    if (!resp.ok) return null;
-    const data = (await resp.json()) as HydratedFloorPayload & { ok?: boolean };
-    return data.ok ? data : null;
-  } catch {
-    return null;
+export async function resetFloorApi(): Promise<HydratedFloorPayload> {
+  const resp = await fetch(resolveApiUrl('/api/floor/reset'), {
+    method: 'POST',
+  });
+  if (!resp.ok) {
+    throw new Error(await readErrorMessage(resp, 'Failed to reset floor state'));
   }
+  const data = (await resp.json()) as HydratedFloorPayload & { ok?: boolean; error?: string };
+  if (!data.ok) {
+    throw new Error(data.error || 'Floor reset failed.');
+  }
+  return data;
 }
 
 export async function allocateTableViaAStar(
@@ -294,32 +320,23 @@ export async function allocateTableViaAStar(
   weights?: AStarWeights,
 ): Promise<{ result: AllocationResult; responseTimeMs: number }> {
   const t0 = performance.now();
-  try {
-    const resp = await fetch(resolveApiUrl('/api/ai/allocate-table'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tables,
-        party,
-        remainingQueueCount,
-        weights,
-      }),
-    });
-    if (resp.ok) {
-      const data = (await resp.json()) as { result: AllocationResult };
-      return {
-        result: data.result,
-        responseTimeMs: Math.max(20, Math.round(performance.now() - t0)),
-      };
-    }
-  } catch {
-    // Fallback
+  const resp = await fetch(resolveApiUrl('/api/ai/allocate-table'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tables,
+      party,
+      remainingQueueCount,
+      weights,
+    }),
+  });
+  if (!resp.ok) {
+    throw new Error(await readErrorMessage(resp, 'A* allocation failed'));
   }
-
-  const result = allocateTableForArrivalWorkflow(tables, party, remainingQueueCount);
+  const data = (await resp.json()) as { result: AllocationResult };
   return {
-    result,
-    responseTimeMs: Math.round(performance.now() - t0),
+    result: data.result,
+    responseTimeMs: Math.max(1, Math.round(performance.now() - t0)),
   };
 }
 
@@ -331,6 +348,7 @@ export async function queryMaitreDRag(params: {
   waiters: WaiterAgent[];
   ingredients: IngredientItem[];
   reservations: ReservationRecord[];
+  menuDishes?: MenuDish[];
 }): Promise<
   Pick<
     MaitreDMessage,
@@ -343,22 +361,29 @@ export async function queryMaitreDRag(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
+  if (!resp.ok) {
+    throw new Error(await readErrorMessage(resp, 'Groq assistant request failed'));
+  }
   const data = (await resp.json()) as {
     reply?: string;
     sources?: string[];
     refusalTriggered?: boolean;
     latencyMs?: number;
     model?: string;
-    provider?: 'groq' | 'grounded-simulator';
+    provider?: 'groq';
   };
+  if (!data.reply) {
+    throw new Error('Groq assistant returned an empty reply.');
+  }
   return {
-    content:
-      data.reply ??
-      'I cannot verify that information from our current restaurant knowledge base or live floor data.',
-    sources: data.sources ?? ['[restaurant_policies.md]', '[live_floor_db]'],
+    content: data.reply,
+    sources:
+      Array.isArray(data.sources) && data.sources.length > 0
+        ? data.sources
+        : ['[restaurant_policies.md]', '[live_floor_db]'],
     refusalTriggered: Boolean(data.refusalTriggered),
     latencyMs: data.latencyMs ?? Math.round(performance.now() - t0),
     model: data.model ?? 'openai/gpt-oss-120b',
-    provider: data.provider ?? 'grounded-simulator',
+    provider: data.provider ?? 'groq',
   };
 }

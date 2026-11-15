@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Bot,
   ChefHat,
@@ -53,6 +53,25 @@ export function AgentsPage() {
     navigate,
   } = useRestaurant();
 
+  const [stockDrafts, setStockDrafts] = useState<Record<string, string>>({});
+  const [actionError, setActionError] = useState('');
+
+  const handleApplyStock = async (ingredientId: string, amount: number) => {
+    setActionError('');
+    try {
+      await setIngredientStock(ingredientId, amount);
+      setStockDrafts((prev) => {
+        const next = { ...prev };
+        delete next[ingredientId];
+        return next;
+      });
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : 'Unable to update pantry stock.',
+      );
+    }
+  };
+
   return (
     <div className="overflow-x-clip bg-[#F5EFE6] text-[#111827] pt-28 pb-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
@@ -106,6 +125,17 @@ export function AgentsPage() {
         </div>
       </div>
 
+      {actionError && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+          <div
+            role="alert"
+            className="border border-[#DC2626]/40 bg-[#FEF2F2] text-[#B91C1C] px-4 py-3 text-xs font-medium"
+          >
+            {actionError}
+          </div>
+        </div>
+      )}
+
       {/* Live Kitchen Orders Queue + Live Ingredient Inventory Control (Hairline Split) */}
       <section className="border-y border-[#DCD0BE] bg-[#F5EFE6]">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 lg:divide-x divide-[#DCD0BE] items-stretch">
@@ -122,7 +152,7 @@ export function AgentsPage() {
                     Live Kitchen Ingredient Inventory
                   </h2>
                   <p className="text-xs text-neutral-600">
-                    Synced atomically with Customer QR Menu orders. Toggle any stock to 0 to test Workflow B.
+                    Synced atomically with Customer QR Menu orders. Adjust live pantry counts or mark items out of stock.
                   </p>
                 </div>
               </div>
@@ -131,7 +161,7 @@ export function AgentsPage() {
                 onClick={() => navigate('/table/T3/menu')}
                 className="px-4 py-2 rounded-full border border-[#059669] bg-[#F5EFE6] text-xs font-semibold text-[#047857] hover:bg-[#059669] hover:text-white transition-colors whitespace-nowrap"
               >
-                Test on Table T3 QR Menu
+                Open Table T3 QR Menu
               </button>
             </div>
 
@@ -149,6 +179,13 @@ export function AgentsPage() {
                   {ingredients.map((ing) => {
                     const isOut = ing.stock <= 0;
                     const isLow = !isOut && ing.stock <= ing.parLevel * 0.25;
+                    const draftValue = stockDrafts[ing.id] ?? String(ing.stock);
+                    const parsedDraft = Number(draftValue);
+                    const canApplyDraft =
+                      draftValue.trim() !== '' &&
+                      Number.isFinite(parsedDraft) &&
+                      parsedDraft >= 0 &&
+                      parsedDraft !== ing.stock;
                     return (
                       <tr key={ing.id} className="hover:bg-[#ECE3D3]">
                         <td className="py-3.5 pr-3 font-semibold text-[#111827]">
@@ -170,9 +207,31 @@ export function AgentsPage() {
                         </td>
                         <td className="py-3.5 pl-3 text-right">
                           <div className="inline-flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min={0}
+                              step="any"
+                              aria-label={`Custom stock for ${ing.name}`}
+                              value={draftValue}
+                              onChange={(e) =>
+                                setStockDrafts((prev) => ({
+                                  ...prev,
+                                  [ing.id]: e.target.value,
+                                }))
+                              }
+                              className="w-16 px-2 py-1 border border-[#C9BCAA] bg-[#FBF8F2] font-mono text-[11px] text-right text-[#111827] tabular-nums focus:outline-none focus:border-[#DC2626]"
+                            />
                             <button
                               type="button"
-                              onClick={() => setIngredientStock(ing.id, 0)}
+                              disabled={!canApplyDraft}
+                              onClick={() => void handleApplyStock(ing.id, parsedDraft)}
+                              className="px-2 py-1 border border-[#111827]/30 bg-[#FBF8F2] text-[11px] font-mono text-[#111827] hover:bg-[#111827] hover:text-white disabled:opacity-40 transition-colors"
+                            >
+                              Apply
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleApplyStock(ing.id, 0)}
                               disabled={isOut}
                               className="px-2.5 py-1 rounded-full border border-[#DC2626]/40 bg-red-50 text-[11px] font-mono text-[#B91C1C] hover:bg-[#DC2626] hover:text-white disabled:opacity-40 transition-colors whitespace-nowrap"
                             >
@@ -180,9 +239,7 @@ export function AgentsPage() {
                             </button>
                             <button
                               type="button"
-                              onClick={() =>
-                                setIngredientStock(ing.id, ing.parLevel)
-                              }
+                              onClick={() => void handleApplyStock(ing.id, ing.parLevel)}
                               className="px-2.5 py-1 rounded-full border border-[#059669]/40 bg-emerald-50 text-[11px] font-mono text-[#047857] hover:bg-[#059669] hover:text-white transition-colors whitespace-nowrap"
                             >
                               Replenish
@@ -230,7 +287,7 @@ export function AgentsPage() {
                       </span>
                       <span
                         className={`font-mono text-[10px] px-2.5 py-0.5 rounded-full border font-semibold ${
-                          ord.status === 'Waiter En Route'
+                          ord.status === 'Waiter En Route' || ord.status === 'Served'
                             ? 'bg-emerald-50 border-[#059669]/40 text-[#047857]'
                             : ord.status === 'Preparing'
                             ? 'bg-[#F5EFE6] border-[#C9BCAA] text-[#111827]'
@@ -252,10 +309,19 @@ export function AgentsPage() {
                         ₹{ord.totalAmount} · {ord.prepTimeMins}m · Waiter{' '}
                         {ord.dispatchedAgentId}
                       </span>
-                      {ord.status !== 'Waiter En Route' && (
+                      {ord.status !== 'Served' && (
                         <button
                           type="button"
-                          onClick={() => advanceOrderStatus(ord.orderId)}
+                          onClick={() => {
+                            setActionError('');
+                            void advanceOrderStatus(ord.orderId).catch((err) =>
+                              setActionError(
+                                err instanceof Error
+                                  ? err.message
+                                  : 'Unable to advance kitchen order stage.',
+                              ),
+                            );
+                          }}
                           className="text-[#DC2626] hover:underline font-semibold"
                         >
                           Advance Stage
@@ -426,24 +492,30 @@ export function AgentsPage() {
               Autonomous Decision Telemetry Stream
             </h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-b border-[#DCD0BE]">
-            {events.slice(0, 9).map((evt) => (
-              <div
-                key={evt.id}
-                className="py-4 md:px-5 border-b border-[#DCD0BE] md:border-r md:[&:nth-child(3n)]:border-r-0 text-xs space-y-1.5"
-              >
-                <div className="flex items-center justify-between font-mono text-[10px]">
-                  <span className="text-[#DC2626] font-semibold">
-                    {evt.agentName}
-                  </span>
-                  <span className="text-neutral-500">
-                    t={evt.tick} · {evt.timestamp}
-                  </span>
+          {events.length === 0 ? (
+            <p className="text-xs text-neutral-500 py-8 border-b border-[#DCD0BE]">
+              No autonomous dispatch telemetry events yet.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-b border-[#DCD0BE]">
+              {events.slice(0, 9).map((evt) => (
+                <div
+                  key={evt.id}
+                  className="py-4 md:px-5 border-b border-[#DCD0BE] md:border-r md:[&:nth-child(3n)]:border-r-0 text-xs space-y-1.5"
+                >
+                  <div className="flex items-center justify-between font-mono text-[10px]">
+                    <span className="text-[#DC2626] font-semibold">
+                      {evt.agentName}
+                    </span>
+                    <span className="text-neutral-500">
+                      t={evt.tick} · {evt.timestamp}
+                    </span>
+                  </div>
+                  <p className="text-neutral-700 leading-relaxed">{evt.message}</p>
                 </div>
-                <p className="text-neutral-700 leading-relaxed">{evt.message}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
       </LateralSlideCard>
     </div>

@@ -182,7 +182,8 @@ export interface MaitreDMessage {
   refusalTriggered?: boolean;
   latencyMs?: number;
   model?: string;
-  provider?: 'groq' | 'grounded-simulator';
+  provider?: 'groq';
+  isError?: boolean;
   timestamp: string;
 }
 
@@ -221,7 +222,7 @@ export interface ReservationRecord {
   needsWheelchair: boolean;
   isVip: boolean;
   specialRequests: string;
-  status: 'CONFIRMED' | 'CHECKED_IN' | 'SEATED';
+  status: 'CONFIRMED' | 'CHECKED_IN' | 'SEATED' | 'COMPLETED' | 'CANCELLED';
   assignedTableIds: string[];
   qrPassCode: string;
   triggeredRules: string[];
@@ -282,7 +283,11 @@ export interface CartOrderItem {
   quantity: number;
 }
 
-export type OrderStatus = 'Order Received' | 'Preparing' | 'Waiter En Route';
+export type OrderStatus =
+  | 'Order Received'
+  | 'Preparing'
+  | 'Waiter En Route'
+  | 'Served';
 
 export interface KitchenOrder {
   orderId: string;

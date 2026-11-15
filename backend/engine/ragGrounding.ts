@@ -11,6 +11,7 @@ import {
 } from './data';
 import type {
   IngredientItem,
+  MenuDish,
   ReservationRecord,
   RestaurantTable,
   WaitingParty,
@@ -162,8 +163,17 @@ export function buildGroqKnowledgeContext(params: {
   waiters: WaiterAgent[];
   ingredients: IngredientItem[];
   reservations: ReservationRecord[];
+  menuDishes?: MenuDish[];
 }): string {
-  const { portal, tables, queue, waiters, ingredients, reservations } = params;
+  const {
+    portal,
+    tables,
+    queue,
+    waiters,
+    ingredients,
+    reservations,
+    menuDishes = MENU_DISHES,
+  } = params;
 
   const staticKnowledge = {
     brand: RESTAURANT_POLICIES.brandName,
@@ -176,7 +186,7 @@ export function buildGroqKnowledgeContext(params: {
       rule: p.content,
     })),
     signatureMenuAndAllergens: SIGNATURE_MENU_KNOWLEDGE_BASE,
-    qrMenuDishes: MENU_DISHES.map((d) => ({
+    qrMenuDishes: menuDishes.map((d) => ({
       id: d.id,
       name: d.name,
       priceInr: d.price,
@@ -289,7 +299,7 @@ export function evaluateGroundedMaitreD(
         return {
           reply: canMake
             ? `Yes — Truffle Paneer Tikka (₹540) is IN STOCK right now: live NeonDB pantry holds ${truffleIng.stock}${truffleIng.unit} Black Truffle Shavings (15g/order) and ${paneerIng.stock}${paneerIng.unit} Fresh Malai Paneer (220g/order).`
-            : `Truffle Paneer Tikka is currently OUT OF STOCK (Black Truffle Shavings: ${truffleIng.stock}${truffleIng.unit}, Fresh Malai Paneer: ${paneerIng.stock}${paneerIng.unit}). Chef substitutes: 24-Hour Smoked Dal Makhani or Wood-Fired Burrata Margherita.`,
+            : `Truffle Paneer Tikka is currently OUT OF STOCK (Black Truffle Shavings: ${truffleIng.stock}${truffleIng.unit}, Fresh Malai Paneer: ${paneerIng.stock}${paneerIng.unit}). Chef substitutes: 24-Hour Smoked Dal Makhani or Wood-Fired Truffle & Burrata Pizza.`,
           sources: ['[live_floor_db]', '[restaurant_policies.md]'],
           refusalTriggered: false,
         };

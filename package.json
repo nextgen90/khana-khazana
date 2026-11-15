@@ -10,8 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx --test backend/engine/aiEngine.test.ts",
-    "seed:demo": "tsx backend/db/seedDemoCli.ts"
+    "test": "tsx --test backend/engine/aiEngine.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -28,7 +28,7 @@ export const HERO_DISH_SLIDES: HeroDishSlide[] = [
     subtitle:
       'Velvety tomato-cashew makhani gravy paired with charred garlic butter naan',
     prepMins: 14,
-    price: 540,
+    price: 420,
     image: '/images/food_paneer_naan_1794676918929.jpg',
   },
   {
@@ -37,8 +37,8 @@ export const HERO_DISH_SLIDES: HeroDishSlide[] = [
     shortLabel: 'Chicken & Paratha',
     subtitle:
       'Slow-roasted pepper chicken curry served with crisp layered paratha',
-    prepMins: 18,
-    price: 470,
+    prepMins: 16,
+    price: 480,
     image: '/images/food_chicken_paratha_1794676918657.jpg',
   },
   {
@@ -48,7 +48,7 @@ export const HERO_DISH_SLIDES: HeroDishSlide[] = [
     subtitle:
       'Blistered sourdough crust, melted mozzarella, wild mushrooms & basil',
     prepMins: 15,
-    price: 430,
+    price: 590,
     image: '/images/food_artisan_pizza_1794676918698.jpg',
   },
   {
@@ -58,7 +58,7 @@ export const HERO_DISH_SLIDES: HeroDishSlide[] = [
     subtitle:
       'Khoya dumplings soaked in cardamom-rose syrup, topped with silver varq & pistachio',
     prepMins: 8,
-    price: 220,
+    price: 240,
     image: '/images/food_gulab_jamun_1794676919306.jpg',
   },
   {
@@ -67,8 +67,8 @@ export const HERO_DISH_SLIDES: HeroDishSlide[] = [
     shortLabel: 'Zafrani Biryani',
     subtitle:
       'Long-grain aged basmati layered with caramelized onions, saffron & aromatic spices',
-    prepMins: 20,
-    price: 490,
+    prepMins: 18,
+    price: 510,
     image: '/images/food_dum_biryani_1794676920335.jpg',
   },
 ];
@@ -76,7 +76,7 @@ export const HERO_DISH_SLIDES: HeroDishSlide[] = [
 const SLIDE_INTERVAL_MS = 2800;
 
 export function CulinaryHeroCarousel() {
-  const { navigate, setPortalMode, floorEfficiency } = useRestaurant();
+  const { navigate, setPortalMode, floorEfficiency, tables } = useRestaurant();
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -182,7 +182,10 @@ export function CulinaryHeroCarousel() {
                 className="w-2 h-2 rounded-full bg-[#059669] inline-block"
               />
               <span className="tabular-nums font-semibold">
-                {floorEfficiency.seatEfficiencyPct}% Seat Efficiency Live
+                {floorEfficiency.freeCount}/{tables.length} Tables Ready ·{' '}
+                {floorEfficiency.occupiedCount > 0
+                  ? `${floorEfficiency.seatEfficiencyPct}% Efficiency Live`
+                  : 'Open for Seating'}
               </span>
             </span>
             <span aria-hidden="true" className="text-white/35">
@@ -217,7 +220,7 @@ export function CulinaryHeroCarousel() {
               className="inline-flex items-center gap-2 px-5 py-3.5 rounded-full bg-[#F5EFE6] text-[#111827] font-semibold text-sm hover:bg-[#ECE3D3] transition-colors whitespace-nowrap"
             >
               <QrCode className="w-4 h-4 text-[#059669]" />
-              Simulate QR Scan (Table T3)
+              Order at Table T3 (QR Menu)
             </button>
 
             <button

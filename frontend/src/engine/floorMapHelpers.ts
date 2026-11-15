@@ -1,4 +1,5 @@
 import { computeBayesianTurnoverProb } from '../../../backend/engine/aiEngine';
+import { isSlotOverlapping } from '../../../backend/engine/workflows';
 import type { ReservationRecord, RestaurantTable } from '../../../backend/engine/types';
 
 export type FloorSeatVisualState =
@@ -50,7 +51,8 @@ export function getReservedTableIdsForSlot(
 ): Set<string> {
   const reserved = new Set<string>();
   for (const r of reservations) {
-    if (r.dateTime === dateTime) {
+    if (r.status === 'CANCELLED' || r.status === 'COMPLETED') continue;
+    if (isSlotOverlapping(r.dateTime, dateTime)) {
       for (const tid of r.assignedTableIds) {
         reserved.add(tid);
       }

@@ -30,6 +30,8 @@ export function DashboardPage() {
     xaiLogs,
     fairnessAudit,
     floorEfficiency,
+    dbError,
+    isDbLoading,
     lastLatencyMs,
     isAutoPlaying,
     setIsAutoPlaying,
@@ -37,6 +39,7 @@ export function DashboardPage() {
     selectedTableId,
     setSelectedTableId,
     simulateGuestArrival,
+    cancelReservation,
     updateTableState,
     stepSimulationTick,
     resetFloor,
@@ -45,6 +48,8 @@ export function DashboardPage() {
 
   const [qrModalTable, setQrModalTable] = useState<RestaurantTable | null>(null);
   const [dispatchingId, setDispatchingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState('');
   const [clickMode, setClickMode] = useState<'toggle' | 'inspect'>('toggle');
 
   const waitingParties = queue.filter((p) => p.status === 'WAITING');
@@ -73,12 +78,36 @@ export function DashboardPage() {
 
   const handleDispatch = async (id: string) => {
     setDispatchingId(id);
+    setActionError('');
     try {
       await simulateGuestArrival(id);
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : 'Unable to check in party.',
+      );
     } finally {
       setDispatchingId(null);
     }
   };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    setCancellingId(bookingId);
+    setActionError('');
+    try {
+      await cancelReservation(bookingId);
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : 'Unable to cancel reservation.',
+      );
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const activeOrders = orders.filter((o) => o.status !== 'Served');
+  const preparingOrdersCount = orders.filter(
+    (o) => o.status === 'Order Received' || o.status === 'Preparing',
+  ).length;
 
   return (
     <div className="overflow-x-clip bg-[#F5EFE6] text-[#111827] pt-28 pb-24">
@@ -114,7 +143,9 @@ export function DashboardPage() {
           </button>
           <button
             type="button"
-            onClick={stepSimulationTick}
+            onClick={() => {
+              void stepSimulationTick();
+            }}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#DC2626] text-white font-semibold text-xs hover:bg-[#B91C1C] transition-colors whitespace-nowrap"
           >
             <StepForward className="w-4 h-4" />
@@ -122,7 +153,14 @@ export function DashboardPage() {
           </button>
           <button
             type="button"
-            onClick={resetFloor}
+            onClick={() => {
+              setActionError('');
+              void resetFloor().catch((err) =>
+                setActionError(
+                  err instanceof Error ? err.message : 'Unable to reset floor.',
+                ),
+              );
+            }}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-[#C9BCAA] bg-[#F5EFE6] text-[#111827] font-medium text-xs hover:border-[#DC2626] hover:text-[#DC2626] transition-colors whitespace-nowrap"
           >
             <RotateCcw className="w-4 h-4" />
@@ -130,6 +168,17 @@ export function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {(dbError || actionError) && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+          <div
+            role="alert"
+            className="border border-[#DC2626]/40 bg-[#FEF2F2] text-[#B91C1C] px-4 py-3 text-xs font-medium"
+          >
+            {actionError || dbError}
+          </div>
+        </div>
+      )}
 
       {/* Architectural Hairline Telemetry Ribbon (Zero Box KPI Cards) */}
       <section
@@ -142,7 +191,7 @@ export function DashboardPage() {
               {
                 label: 'Seat Utilization',
                 value: `${floorEfficiency.seatEfficiencyPct}%`,
-                sub: `${floorEfficiency.occupiedCount}/10 Active`,
+                sub: `${floorEfficiency.occupiedCount}/${tables.length} Active`,
               },
               {
                 label: 'Avg Turnover',
@@ -151,8 +200,8 @@ export function DashboardPage() {
               },
               {
                 label: 'Orders in Kitchen',
-                value: `${orders.length}`,
-                sub: `${orders.filter((o) => o.status !== 'Waiter En Route').length} Preparing`,
+                value: `${activeOrders.length}`,
+                sub: `${preparingOrdersCount} Preparing · ${orders.length} Total`,
               },
               {
                 label: 'Fairness Score',
@@ -161,7 +210,12 @@ export function DashboardPage() {
               },
               {
                 label: 'NeonDB Sync',
-                value: `${lastLatencyMs}ms`,
+                value:
+                  lastLatencyMs !== null
+                    ? `${lastLatencyMs}ms`
+                    : isDbLoading
+                    ? '...'
+                    : 'Offline',
                 sub: `${reservations.length} Bookings Synced`,
               },
             ].map((kpi, idx) => (
@@ -264,32 +318,50 @@ export function DashboardPage() {
               <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#059669] font-semibold">
                 Recent NeonDB Reservations
               </p>
-              <div className="divide-y divide-[#DCD0BE] border-t border-[#DCD0BE]">
-                {reservations.slice(0, 3).map((res) => (
-                  <div
-                    key={res.bookingId}
-                    className="py-2.5 flex items-center justify-between text-xs gap-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-semibold text-[#111827] truncate">
-                        {res.bookingId} · {res.guestName}
-                      </p>
-                      <p className="font-mono text-[10px] text-neutral-500">
-                        {res.assignedTableIds.join('+')} · {res.status}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate(`/table/${res.assignedTableIds[0] ?? 'T3'}/menu`)
-                      }
-                      className="text-[11px] font-mono font-semibold text-[#DC2626] hover:underline shrink-0"
+              {reservations.length === 0 ? (
+                <p className="text-xs text-neutral-500 py-3 border-t border-[#DCD0BE]">
+                  No reservations recorded yet.
+                </p>
+              ) : (
+                <div className="divide-y divide-[#DCD0BE] border-t border-[#DCD0BE]">
+                  {reservations.slice(0, 5).map((res) => (
+                    <div
+                      key={res.bookingId}
+                      className="py-2.5 flex items-center justify-between text-xs gap-2"
                     >
-                      QR Menu
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-[#111827] truncate">
+                          {res.bookingId} · {res.guestName}
+                        </p>
+                        <p className="font-mono text-[10px] text-neutral-500">
+                          {res.assignedTableIds.join('+')} · {res.status}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {res.status === 'CONFIRMED' && (
+                          <button
+                            type="button"
+                            disabled={cancellingId === res.bookingId}
+                            onClick={() => handleCancelBooking(res.bookingId)}
+                            className="text-[11px] font-mono font-semibold text-neutral-600 hover:text-[#DC2626] disabled:opacity-50"
+                          >
+                            {cancellingId === res.bookingId ? '...' : 'Cancel'}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate(`/table/${res.assignedTableIds[0] ?? 'T3'}/menu`)
+                          }
+                          className="text-[11px] font-mono font-semibold text-[#DC2626] hover:underline"
+                        >
+                          QR Menu
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </LateralSlideCard>
 
@@ -394,7 +466,7 @@ export function DashboardPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-[11px] text-neutral-500 mr-1">
-                      Simulate State:
+                      Update Status:
                     </span>
                     {(['Free', 'Occupied', 'Paying', 'Dirty'] as TableStatus[]).map(
                       (status) => (
@@ -471,19 +543,25 @@ export function DashboardPage() {
               ))}
             </div>
 
-            <div className="divide-y divide-[#DCD0BE] max-h-72 overflow-y-auto pr-1">
-              {events.slice(0, 6).map((evt) => (
-                <div key={evt.id} className="py-3 text-xs text-neutral-700">
-                  <div className="flex items-center justify-between font-mono text-[10px] text-neutral-500 mb-1">
-                    <span className="text-[#DC2626] font-semibold">
-                      {evt.agentName}
-                    </span>
-                    <span>{evt.timestamp}</span>
+            {events.length === 0 ? (
+              <p className="text-xs text-neutral-500 py-6">
+                No recent agent dispatches yet. Dispatches appear here upon booking, check-in, or QR ordering.
+              </p>
+            ) : (
+              <div className="divide-y divide-[#DCD0BE] max-h-72 overflow-y-auto pr-1">
+                {events.slice(0, 6).map((evt) => (
+                  <div key={evt.id} className="py-3 text-xs text-neutral-700">
+                    <div className="flex items-center justify-between font-mono text-[10px] text-neutral-500 mb-1">
+                      <span className="text-[#DC2626] font-semibold">
+                        {evt.agentName}
+                      </span>
+                      <span>{evt.timestamp}</span>
+                    </div>
+                    <p className="leading-snug">{evt.message}</p>
                   </div>
-                  <p className="leading-snug">{evt.message}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </LateralSlideCard>
         </div>
       </section>
@@ -521,38 +599,44 @@ export function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-y md:divide-y-0 md:gap-0 border-b border-[#DCD0BE]">
-            {xaiLogs.slice(0, 6).map((log) => (
-              <div
-                key={log.id}
-                className="py-5 md:px-5 border-b border-[#DCD0BE] md:border-r md:[&:nth-child(3n)]:border-r-0 space-y-2"
-              >
-                <div className="flex items-center justify-between font-mono text-[11px]">
-                  <span className="text-[#DC2626] font-semibold">
-                    {log.partyName} ({log.partySize}p)
-                  </span>
-                  <span className="text-neutral-500">{log.timestamp}</span>
-                </div>
-                <p className="font-mono text-xs text-[#047857] font-semibold">
-                  → {log.assignedTables.join(' + ')} · f={log.fScore}
-                </p>
-                <p className="text-xs text-neutral-700 leading-relaxed">
-                  {log.justification}
-                </p>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {log.rulesApplied.map((r) => (
-                    <span
-                      key={r}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#ECE3D3] border border-[#DCD0BE] font-mono text-[10px] text-neutral-700"
-                    >
-                      <Sparkles className="w-2.5 h-2.5 text-[#DC2626]" />
-                      {r}
+          {xaiLogs.length === 0 ? (
+            <p className="text-xs text-neutral-500 py-8 border-b border-[#DCD0BE]">
+              No seating audit decisions recorded yet. Audit entries are appended automatically as bookings and check-ins occur.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-y md:divide-y-0 md:gap-0 border-b border-[#DCD0BE]">
+              {xaiLogs.slice(0, 6).map((log) => (
+                <div
+                  key={log.id}
+                  className="py-5 md:px-5 border-b border-[#DCD0BE] md:border-r md:[&:nth-child(3n)]:border-r-0 space-y-2"
+                >
+                  <div className="flex items-center justify-between font-mono text-[11px]">
+                    <span className="text-[#DC2626] font-semibold">
+                      {log.partyName} ({log.partySize}p)
                     </span>
-                  ))}
+                    <span className="text-neutral-500">{log.timestamp}</span>
+                  </div>
+                  <p className="font-mono text-xs text-[#047857] font-semibold">
+                    → {log.assignedTables.join(' + ')} · f={log.fScore}
+                  </p>
+                  <p className="text-xs text-neutral-700 leading-relaxed">
+                    {log.justification}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {log.rulesApplied.map((r) => (
+                      <span
+                        key={r}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#ECE3D3] border border-[#DCD0BE] font-mono text-[10px] text-neutral-700"
+                      >
+                        <Sparkles className="w-2.5 h-2.5 text-[#DC2626]" />
+                        {r}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
       </LateralSlideCard>
 

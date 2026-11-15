@@ -31,6 +31,7 @@ export function Navbar() {
     setPortalMode,
     navigate,
     dbConnected,
+    isDbLoading,
     lastLatencyMs,
   } = useRestaurant();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -176,12 +177,18 @@ export function Navbar() {
             <span
               aria-hidden="true"
               className={`w-1.5 h-1.5 rounded-full inline-block shrink-0 ${
-                dbConnected ? 'bg-[#059669]' : 'bg-amber-500'
+                dbConnected
+                  ? 'bg-[#059669]'
+                  : isDbLoading
+                  ? 'bg-amber-400 animate-pulse'
+                  : 'bg-[#DC2626]'
               }`}
             />
-            {dbConnected
-              ? `NeonDB: ${lastLatencyMs}ms | Groq GPT-OSS-120B`
-              : 'Local Mode (DB Offline) | Groq GPT-OSS-120B'}
+            {isDbLoading
+              ? 'Connecting NeonDB... | Groq GPT-OSS-120B'
+              : dbConnected
+              ? `NeonDB: ${lastLatencyMs ?? 0}ms | Groq GPT-OSS-120B`
+              : 'NeonDB Offline | Groq GPT-OSS-120B'}
           </span>
 
           <button
